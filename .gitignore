@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+*.log
+tsconfig.tsbuildinfo
+
+# 验证脚本的中间转译产物
+scripts/.gen/
+
+# 工具/记忆目录，不入库
+.workbuddy/
+.vscode/

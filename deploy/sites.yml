@@ -1,0 +1,30 @@
+# 仓库 ↔ 域名 ↔ Lighthouse 实例 ↔ web 根  对照表（单一真源）
+#
+# 改站点先改这张表，再同步 CI secrets 与 nginx 配置。
+# 与姊妹站 interleaved-pfc / llc-design-tool / ahb-flyback 同构。
+
+sites:
+  - id: widget
+    repo:    git@github.com:WisdomHuang2020/widget.git
+    branch:  main
+    domain:  widget.power-knowledge.tech          # 正式发布目标（自有域名）
+    pages:   https://wisdomhuang2020.github.io/widget/   # 兜底免费通道
+    lighthouse:                                    # 腾讯云轻量应用服务器（与四站共用一台）
+      instance_id: lhins-n1uhxlwk
+      region:      ap-shanghai
+      host:        150.158.164.41
+      user:        root
+      web_root:    /var/www/widget                 # 必须等于 nginx 的 root
+      key:         ~/.ssh/widget_ci                # 部署私钥；公钥须已装入 authorized_keys
+      port:        22
+      owner:       www-data                        # 上传后 chown 的属主
+      cert:        /etc/letsencrypt/live/pk-wildcard   # 通配符证书，已覆盖 *.power-knowledge.tech
+    dist:    dist
+    build:   npm run build
+    secrets: [LH_HOST, LH_USER, LH_ROOT, LH_SSH_KEY, LH_PORT]
+
+# 注意：
+#   1. www.widget.power-knowledge.tech 不在证书 SAN 内（通配符只匹配一级子域），
+#      故本站不配置 www 别名与对应 301 规则。
+#   2. nginx 配置为独立文件 /etc/nginx/sites-available/widget，
+#      不写进公共的 ssl-sites，避免波及同机其它站。

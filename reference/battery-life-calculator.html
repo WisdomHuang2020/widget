@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>锂电池续航与充电时间计算器</title>
+    <style>
+        :root {
+            --brand: #0f4c81;
+            --brand-2: #1a6fb0;
+            --brand-light: #e3f2fd;
+            --text: #2c3e50;
+            --text-light: #666;
+            --border: #e0e0e0;
+            --bg: #f5f7fa;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Roboto, sans-serif;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+        .hero {
+            background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+            color: #fff;
+            padding: 20px 32px;
+            margin-bottom: 16px;
+        }
+        .hero h1 {
+            font-size: 19px;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .hero p {
+            font-size: 11px;
+            opacity: 0.9;
+        }
+        .container {
+            max-width: 95%;
+            margin: 0 auto 24px;
+            padding: 0 16px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            padding: 20px 24px;
+            margin-bottom: 16px;
+        }
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--brand);
+            margin: 0 0 12px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid var(--brand-light);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .section-title::before {
+            content: "";
+            width: 3px;
+            height: 14px;
+            background: var(--brand);
+            border-radius: 2px;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.3fr;
+            gap: 20px;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-light);
+            margin-bottom: 3px;
+            font-weight: 500;
+        }
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .input-row input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-size: 12px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .input-row input:focus {
+            border-color: var(--brand-2);
+            box-shadow: 0 0 0 3px rgba(26, 111, 176, 0.1);
+        }
+        .input-row input:disabled {
+            background-color: #f5f5f5;
+            color: #999;
+        }
+        .input-row .unit {
+            font-size: 11px;
+            color: var(--text-light);
+            width: 36px;
+            text-align: right;
+        }
+        .charge-mode {
+            display: flex;
+            gap: 12px;
+            margin: 8px 0;
+            padding: 6px 10px;
+            background: var(--brand-light);
+            border-radius: 5px;
+        }
+        .charge-mode label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            cursor: pointer;
+            color: var(--text);
+        }
+        .btn-calculate {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 12px 0;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        .btn-calculate:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(15, 76, 129, 0.3);
+        }
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .result-item {
+            background: #f8f9fa;
+            padding: 8px 10px;
+            border-radius: 5px;
+            border-left: 3px solid var(--brand-2);
+        }
+        .result-label {
+            font-size: 10px;
+            color: var(--text-light);
+            margin-bottom: 2px;
+        }
+        .result-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .result-value.highlight {
+            color: var(--danger);
+            font-size: 14px;
+        }
+        .result-value.success {
+            color: var(--success);
+        }
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 12px 0;
+        }
+        .calc-process {
+            background: #f8fbff;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 10px;
+            line-height: 1.7;
+        }
+        .calc-step {
+            margin-bottom: 8px;
+            padding-left: 8px;
+            border-left: 2px solid var(--brand-2);
+        }
+        .calc-step b {
+            color: var(--brand);
+        }
+        .tip-box {
+            background: #fff8e1;
+            border-left: 3px solid var(--warning);
+            padding: 10px 12px;
+            border-radius: 0 5px 5px 0;
+            font-size: 10px;
+            color: #666;
+            margin-top: 12px;
+            line-height: 1.6;
+        }
+        .note-box {
+            background: #e8f5e9;
+            border-left: 3px solid var(--success);
+            padding: 10px 12px;
+            border-radius: 0 5px 5px 0;
+            font-size: 10px;
+            color: #555;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .calc-process {
+                grid-column: span 2;
+            }
+        }
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .calc-process {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>锂电池续航与充电时间计算器</h1>
+        <p>LED灯条、人体感应灯等低功耗产品电池容量与充电时间工程估算</p>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="main-grid">
+                <!-- 左侧：输入参数 -->
+                <div>
+                    <div class="section-title">电池参数</div>
+                    <div class="form-group">
+                        <label>标称容量</label>
+                        <div class="input-row">
+                            <input type="number" id="capacity" value="2500" min="1">
+                            <span class="unit">mAh</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>标称电压</label>
+                        <div class="input-row">
+                            <input type="number" id="voltage" value="3.7" step="0.1" min="0.1">
+                            <span class="unit">V</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>放电深度 (DOD)</label>
+                        <div class="input-row">
+                            <input type="number" id="dod" value="80" min="1" max="100">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+
+                    <div class="section-title" style="margin-top:16px;">功耗参数</div>
+                    <div class="form-group">
+                        <label>待机电流 (静态功耗)</label>
+                        <div class="input-row">
+                            <input type="number" id="standbyCurrent" value="0.75" step="0.01" min="0">
+                            <span class="unit">mA</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>工作功耗 (亮灯功率)</label>
+                        <div class="input-row">
+                            <input type="number" id="workPower" value="0.2" step="0.01" min="0">
+                            <span class="unit">W</span>
+                        </div>
+                    </div>
+
+                    <div class="section-title" style="margin-top:16px;">使用模式</div>
+                    <div class="form-group">
+                        <label>每日触发次数</label>
+                        <div class="input-row">
+                            <input type="number" id="timesPerDay" value="3" min="0">
+                            <span class="unit">次</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>每次亮灯时长</label>
+                        <div class="input-row">
+                            <input type="number" id="durationPerTime" value="1" step="0.1" min="0">
+                            <span class="unit">分钟</span>
+                        </div>
+                    </div>
+
+                    <div class="section-title" style="margin-top:16px;">充电参数</div>
+                    <div class="charge-mode">
+                        <label><input type="radio" name="chargeMode" value="current" checked onchange="switchChargeMode()"> 按充电电流</label>
+                        <label><input type="radio" name="chargeMode" value="rate" onchange="switchChargeMode()"> 按充电倍率</label>
+                    </div>
+                    <div class="form-group">
+                        <label>充电电流</label>
+                        <div class="input-row">
+                            <input type="number" id="chargeCurrent" value="500" min="1">
+                            <span class="unit">mA</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>充电倍率</label>
+                        <div class="input-row">
+                            <input type="number" id="chargeRate" value="0.2" step="0.05" min="0.05" disabled>
+                            <span class="unit">C</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>充电转换效率 (含IC损耗)</label>
+                        <div class="input-row">
+                            <input type="number" id="chargeEfficiency" value="85" min="1" max="100">
+                            <span class="unit">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 中间：计算结果 -->
+                <div>
+                    <button class="btn-calculate" onclick="calculate()">开始计算</button>
+                    
+                    <div class="section-title">核心结果</div>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <div class="result-label">有效可用容量</div>
+                            <div class="result-value" id="effectiveCapacity">-- mAh</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">工作电流</div>
+                            <div class="result-value" id="workCurrent">-- mA</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">每日工作耗电</div>
+                            <div class="result-value" id="dailyWork">-- mAh</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">每日待机耗电</div>
+                            <div class="result-value" id="dailyStandby">-- mAh</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">每日总耗电</div>
+                            <div class="result-value" id="dailyTotal">-- mAh</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">电池总能量</div>
+                            <div class="result-value" id="batteryEnergy">-- Wh</div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="section-title">续航指标</div>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <div class="result-label">纯待机续航 (理论极限)</div>
+                            <div class="result-value highlight" id="standbyDays">-- 天</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">综合续航 (实际使用)</div>
+                            <div class="result-value highlight" id="totalDays">-- 天</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">综合续航 (小时)</div>
+                            <div class="result-value" id="totalHours">-- h</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">综合续航 (月)</div>
+                            <div class="result-value success" id="totalMonths">-- 月</div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="section-title">充电指标</div>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <div class="result-label">充电电流</div>
+                            <div class="result-value" id="chargeCurrentResult">-- mA</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">充电倍率</div>
+                            <div class="result-value" id="chargeRateResult">-- C</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">理论充电时间 (恒流)</div>
+                            <div class="result-value" id="chargeTimeTheory">-- h</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">实际充电时间 (含损耗)</div>
+                            <div class="result-value highlight" id="chargeTimeActual">-- h</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：计算过程 -->
+                <div>
+                    <div class="section-title">计算过程</div>
+                    <div class="calc-process" id="calcProcess">
+                        <div class="calc-step"><b>1. 有效可用容量</b><br>
+                        C有效 = C标称 × DOD = -- mAh</div>
+                        
+                        <div class="calc-step"><b>2. 工作电流计算</b><br>
+                        I工作 = P工作 / V电池 × 1000 = -- mA</div>
+                        
+                        <div class="calc-step"><b>3. 每日工作耗电</b><br>
+                        t工作日 = 次数 × 时长 / 60 = -- h<br>
+                        C工作日 = I工作 × t工作日 = -- mAh</div>
+                        
+                        <div class="calc-step"><b>4. 每日待机耗电</b><br>
+                        C待机日 = I待机 × 24h = -- mAh</div>
+                        
+                        <div class="calc-step"><b>5. 每日总耗电</b><br>
+                        C总日 = C工作日 + C待机日 = -- mAh</div>
+                        
+                        <div class="calc-step"><b>6. 续航计算</b><br>
+                        纯待机 = C有效 / I待机 / 24 = -- 天<br>
+                        综合 = C有效 / C总日 = -- 天</div>
+                        
+                        <div class="calc-step"><b>7. 充电参数互算</b><br>
+                        I充 = C标称 × 倍率 = -- mA</div>
+                        
+                        <div class="calc-step"><b>8. 充电时间</b><br>
+                        理论 = C标称 / I充 = -- h<br>
+                        实际 = 理论 / 效率 = -- h</div>
+                    </div>
+
+                    <div class="tip-box">
+                        <b>工程说明：</b><br>
+                        • 锂电池充电为CC/CV模式，恒流阶段约充入80%容量，恒压阶段占20%时间，实际总时间约为理论值的1.2~1.5倍<br>
+                        • 本计算未考虑电池自放电（每月约3~5%），长期放置需额外预留<br>
+                        • 待机电流含PIR感应+MCU+电源管理IC静态功耗
+                    </div>
+
+                    <div class="note-box">
+                        <b>选型建议：</b><br>
+                        • 循环寿命优先：DOD取50%，容量翻倍换寿命<br>
+                        • 空间优先：DOD取80%，注意低温放电容量衰减<br>
+                        • 充电倍率≤0.5C为常规，0.1~0.2C为慢充长寿命方案
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chargeMode = 'current';
+
+        function switchChargeMode() {
+            chargeMode = document.querySelector('input[name="chargeMode"]:checked').value;
+            const chargeCurrentInput = document.getElementById('chargeCurrent');
+            const chargeRateInput = document.getElementById('chargeRate');
+            
+            if (chargeMode === 'current') {
+                chargeCurrentInput.disabled = false;
+                chargeRateInput.disabled = true;
+            } else {
+                chargeCurrentInput.disabled = true;
+                chargeRateInput.disabled = false;
+            }
+            calculate();
+        }
+
+        function calculate() {
+            const capacity = parseFloat(document.getElementById('capacity').value) || 0;
+            const voltage = parseFloat(document.getElementById('voltage').value) || 0;
+            const dod = parseFloat(document.getElementById('dod').value) || 0;
+            const standbyCurrent = parseFloat(document.getElementById('standbyCurrent').value) || 0;
+            const workPower = parseFloat(document.getElementById('workPower').value) || 0;
+            const timesPerDay = parseFloat(document.getElementById('timesPerDay').value) || 0;
+            const durationPerTime = parseFloat(document.getElementById('durationPerTime').value) || 0;
+            const chargeEfficiency = parseFloat(document.getElementById('chargeEfficiency').value) || 0;
+
+            // 1. 有效可用容量
+            const effectiveCapacity = capacity * (dod / 100);
+            
+            // 2. 工作电流
+            const workCurrent = voltage > 0 ? (workPower / voltage) * 1000 : 0;
+            
+            // 3. 每日工作耗电
+            const dailyWorkHours = (timesPerDay * durationPerTime) / 60;
+            const dailyWorkConsumption = workCurrent * dailyWorkHours;
+            
+            // 4. 每日待机耗电
+            const dailyStandbyConsumption = standbyCurrent * 24;
+            
+            // 5. 每日总耗电
+            const dailyTotalConsumption = dailyWorkConsumption + dailyStandbyConsumption;
+            
+            // 6. 电池总能量
+            const batteryEnergy = (capacity * voltage) / 1000;
+            
+            // 7. 续航
+            const standbyDays = standbyCurrent > 0 ? effectiveCapacity / standbyCurrent / 24 : 0;
+            const totalDays = dailyTotalConsumption > 0 ? effectiveCapacity / dailyTotalConsumption : 0;
+            const totalHours = totalDays * 24;
+            const totalMonths = totalDays / 30;
+            
+            // 8. 充电参数互算
+            let chargeCurrent, chargeRate;
+            if (chargeMode === 'current') {
+                chargeCurrent = parseFloat(document.getElementById('chargeCurrent').value) || 0;
+                chargeRate = capacity > 0 ? chargeCurrent / capacity : 0;
+            } else {
+                chargeRate = parseFloat(document.getElementById('chargeRate').value) || 0;
+                chargeCurrent = capacity * chargeRate;
+            }
+            
+            // 9. 充电时间
+            const chargeTimeTheory = chargeCurrent > 0 ? capacity / chargeCurrent : 0;
+            const chargeTimeActual = chargeEfficiency > 0 ? chargeTimeTheory / (chargeEfficiency / 100) : 0;
+
+            // 更新结果
+            document.getElementById('effectiveCapacity').textContent = effectiveCapacity.toFixed(0) + ' mAh';
+            document.getElementById('workCurrent').textContent = workCurrent.toFixed(1) + ' mA';
+            document.getElementById('dailyWork').textContent = dailyWorkConsumption.toFixed(2) + ' mAh';
+            document.getElementById('dailyStandby').textContent = dailyStandbyConsumption.toFixed(2) + ' mAh';
+            document.getElementById('dailyTotal').textContent = dailyTotalConsumption.toFixed(2) + ' mAh';
+            document.getElementById('batteryEnergy').textContent = batteryEnergy.toFixed(2) + ' Wh';
+            document.getElementById('standbyDays').textContent = standbyDays.toFixed(1) + ' 天';
+            document.getElementById('totalDays').textContent = totalDays.toFixed(1) + ' 天';
+            document.getElementById('totalHours').textContent = totalHours.toFixed(0) + ' h';
+            document.getElementById('totalMonths').textContent = totalMonths.toFixed(1) + ' 月';
+            document.getElementById('chargeCurrentResult').textContent = chargeCurrent.toFixed(0) + ' mA';
+            document.getElementById('chargeRateResult').textContent = chargeRate.toFixed(3) + ' C';
+            document.getElementById('chargeTimeTheory').textContent = chargeTimeTheory.toFixed(1) + ' h';
+            document.getElementById('chargeTimeActual').textContent = chargeTimeActual.toFixed(1) + ' h';
+
+            // 更新计算过程
+            const chargeStep = chargeMode === 'current' 
+                ? `I充 = ${chargeCurrent.toFixed(0)} mA（输入）<br>倍率 = ${chargeCurrent.toFixed(0)} / ${capacity.toFixed(0)} = <b>${chargeRate.toFixed(3)} C</b>`
+                : `倍率 = ${chargeRate.toFixed(2)} C（输入）<br>I充 = ${capacity.toFixed(0)} × ${chargeRate.toFixed(2)} = <b>${chargeCurrent.toFixed(0)} mA</b>`;
+
+            document.getElementById('calcProcess').innerHTML = `
+                <div class="calc-step"><b>1. 有效可用容量</b><br>
+                C有效 = C标称 × DOD = ${capacity.toFixed(0)} × ${dod.toFixed(0)}% = <b>${effectiveCapacity.toFixed(0)} mAh</b></div>
+                
+                <div class="calc-step"><b>2. 工作电流计算</b><br>
+                I工作 = P工作 / V电池 × 1000<br>
+                = ${workPower}W / ${voltage.toFixed(1)}V × 1000 = <b>${workCurrent.toFixed(1)} mA</b></div>
+                
+                <div class="calc-step"><b>3. 每日工作耗电</b><br>
+                t工作日 = ${timesPerDay}次 × ${durationPerTime}分 / 60 = ${dailyWorkHours.toFixed(2)} h<br>
+                C工作日 = ${workCurrent.toFixed(1)}mA × ${dailyWorkHours.toFixed(2)}h = <b>${dailyWorkConsumption.toFixed(2)} mAh</b></div>
+                
+                <div class="calc-step"><b>4. 每日待机耗电</b><br>
+                C待机日 = ${standbyCurrent}mA × 24h = <b>${dailyStandbyConsumption.toFixed(2)} mAh</b></div>
+                
+                <div class="calc-step"><b>5. 每日总耗电</b><br>
+                C总日 = ${dailyWorkConsumption.toFixed(2)} + ${dailyStandbyConsumption.toFixed(2)} = <b>${dailyTotalConsumption.toFixed(2)} mAh</b></div>
+                
+                <div class="calc-step"><b>6. 续航计算</b><br>
+                纯待机 = ${effectiveCapacity.toFixed(0)} / ${standbyCurrent} / 24 = <b>${standbyDays.toFixed(1)} 天</b><br>
+                综合 = ${effectiveCapacity.toFixed(0)} / ${dailyTotalConsumption.toFixed(2)} = <b>${totalDays.toFixed(1)} 天</b></div>
+                
+                <div class="calc-step"><b>7. 充电参数互算</b><br>
+                ${chargeStep}</div>
+                
+                <div class="calc-step"><b>8. 充电时间</b><br>
+                理论 = ${capacity.toFixed(0)} / ${chargeCurrent.toFixed(0)} = <b>${chargeTimeTheory.toFixed(1)} h</b><br>
+                实际 = ${chargeTimeTheory.toFixed(1)} / ${chargeEfficiency.toFixed(0)}% = <b>${chargeTimeActual.toFixed(1)} h</b></div>
+            `;
+        }
+
+        window.onload = calculate;
+    </script>
+</body>
+</html>
