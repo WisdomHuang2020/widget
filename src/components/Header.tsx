@@ -22,6 +22,12 @@ export default function Header() {
         >
           <CircuitBoard className="w-6 h-6 text-primary-light" />
           <span className="font-bold text-lg tracking-tight">Power Widget</span>
+          {/* 版本号在页头与页脚各显示一处，两处共用同一个 __APP_VERSION__ 常量
+              （由 vite define 从 package.json 注入），故不存在硬编码各自漂移的风险。
+              app-version 为 class 钩子，供线上核验用 querySelectorAll 断言。 */}
+          <span className="app-version px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold text-primary-light bg-primary-dark/50 border border-primary-light/30 leading-none">
+            v{__APP_VERSION__}
+          </span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">

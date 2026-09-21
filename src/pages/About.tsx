@@ -121,7 +121,7 @@ export default function About() {
       <SectionCard title="版本与源码">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-text-secondary">
           <span className="font-mono">
-            当前版本：<span className="text-primary-light">v{__APP_VERSION__}</span>
+            当前版本：<span className="app-version text-primary-light">v{__APP_VERSION__}</span>
           </span>
           <a
             href="https://github.com/WisdomHuang2020/widget"
