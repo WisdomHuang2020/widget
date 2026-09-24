@@ -1,37 +1,41 @@
 name: Deploy to Tencent Lighthouse
 
-# 第二个部署目标：腾讯轻量云上的 nginx（与 deploy.yml 的 GitHub Pages **并行独立**）。
-# 正式对外域名：https://widget.power-knowledge.tech/  （服务器 150.158.164.41，web 根 /var/www/widget）
+# ═══ 联合部署：一次 push，同步发布到两个自有域名 ═══
 #
-# 本文件与姊妹项目 interleaved-pfc / llc-design-tool / ahb-flyback 的 deploy-lighthouse.yml 同构，
-# 仅站点名、域名、web 根不同，便于统一维护。
+#   A · widget.power-knowledge.tech  →  150.158.164.41（lhins-n1uhxlwk，站群机）/var/www/widget
+#   B · www.wx-seastar.cn            →  43.142.148.37（lhins-6i7vay90，DSH 机）/var/www/widget
 #
-# 设计要点：
-#   1. **未配置时不报错**。若 LH_* secrets 缺失，本工作流只打印一条 notice 后跳过，
-#      不会让 main 分支出现红灯 —— 文件可以先合入、密钥随后再配。
-#   2. **只在配置齐备时才跑构建**，避免无意义的 CI 开销。
-#   3. **传输用 tar over ssh**：统一用 tar 流而非 rsync，减少两套命令漂移。
-#   4. **不做删除**：产物资源名带内容哈希，旧文件不会被引用，属于惰性残留；
-#      宁可留着也不在线上执行 rm（风险不对称）。
-#   5. **拒绝降级部署**：上传前把本次产物的 package.json 版本，与服务器上的
-#      版本哨兵 `$LH_ROOT/.deployed-version` 比对；产物**严格早于**线上即中止。
-#      版本哨兵在上传成功后写入。成因见下方案例。
-#   6. **属主归位**：解包用 `--no-same-owner` 并 chown 到 nginx 运行用户，
-#      避免把 CI runner 的 uid 带到线上。
+# 两者跑的是**同一份构建产物**（widget 项目在 Windows 与 CI Linux 上构建产物逐字节一致，
+# 已实测），只是发布到两台不同的服务器、对外两个域名。
 #
-# ⚠️ 为什么要有第 5 条（2026-09-21 interleaved-pfc 实际事故）：
-#   旧 run（sha 指向旧版本）被**重跑**，它的 Deploy 步把旧 dist 重新解包
-#   **覆盖**了刚部署的新版本，线上入口 index.html 被改回指向旧 bundle，
-#   而该 run 最后只因自检步失败才标记 failure —— 「失败的绿色部署」比红灯更危险。
-#   concurrency 无法阻止：旧 run 在**新 run 之后**才启动，无冲突可取消。
-#   真正的第一道防线是纪律：**不要重跑旧的部署 run，要重部署就 dispatch 当前 main**。
+# 为什么拆成两个独立 job 而不是一个 job 里两步：
+#   1. **失败隔离** —— A 的密钥配错或服务器不可达时，B 照样部署成功，不会一起挂；
+#   2. **并行执行** —— 两个 job 同时在两个 runner 上跑，墙钟时间约等于单站；
+#   3. 代价只是多构建一次（约 15 s），换来的是互不拖累。
+#   注：两个 job 之间没有 needs 依赖，所以天然并行，不需要 fail-fast: false。
 #
-# 所需 repository secrets（与姊妹站同名，便于记忆与批量维护）：
-#   LH_HOST     服务器地址（150.158.164.41）
-#   LH_USER     登录用户名（root）
-#   LH_ROOT     网站根目录绝对路径（必须等于 nginx 的 root 指令，本站为 /var/www/widget）
-#   LH_SSH_KEY  部署私钥全文（本站专用密钥，对应已装入服务器 root 的 authorized_keys 的公钥）
-#   LH_PORT     可选，SSH 端口，缺省 22
+# 第三个部署目标 GitHub Pages（兜底）由 deploy.yml 单独负责，与本文件互不阻塞。
+#
+# 每个 job 的护栏与原单站版本完全一致：
+#   未配 secrets 时优雅跳过 / 降级护栏 / 上传前备份 / tar over ssh /
+#   --no-same-owner + chown / 写版本哨兵 / 自检不阻断。
+#
+# 所需 repository secrets（两组，命名前缀区分）：
+#   ── A 组（第一台）──
+#   LH_HOST     150.158.164.41
+#   LH_USER     root
+#   LH_ROOT     /var/www/widget
+#   LH_SSH_KEY  ~/.ssh/widget_ci 私钥全文
+#   LH_PORT     可选，缺省 22
+#   ── B 组（第二台）──
+#   LH2_HOST    43.142.148.37
+#   LH2_USER    root
+#   LH2_ROOT    /var/www/widget
+#   LH2_SSH_KEY ~/.ssh/deepseek_ops 私钥全文
+#   LH2_PORT    可选，缺省 22
+#
+# ⚠️ 未配置的组会走「优雅跳过」——job 级仍显示成功（假绿），
+#    判断是否真的部署了必须下钻到步骤级，确认 `Deploy to server over SSH` 是 success 而非 skipped。
 
 on:
   push:
@@ -43,7 +47,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  # ═══════════════════════════════════════════════════════
+  # A · 第一台（站群机）
+  # ═══════════════════════════════════════════════════════
+  deploy-primary:
+    name: A · widget.power-knowledge.tech
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -51,7 +59,6 @@ jobs:
 
       # 前置判定：密钥未配置时优雅跳过，而不是让流水线变红。
       # ⚠️ 注意这个分支是「假绿」来源：job 会显示成功，但后面所有步骤都 skipped。
-      # 判断是否真的部署了，必须看步骤级结果，不能只看 run 的绿勾。
       - name: Check configuration
         id: cfg
         env:
@@ -62,10 +69,10 @@ jobs:
         run: |
           if [ -z "$LH_HOST" ] || [ -z "$LH_USER" ] || [ -z "$LH_ROOT" ] || [ -z "$LH_SSH_KEY" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=已跳过轻量云部署::未配置 LH_HOST/LH_USER/LH_ROOT/LH_SSH_KEY，本次不上传任何文件。"
+            echo "::notice title=已跳过轻量云部署（A 组）::未配置 LH_HOST/LH_USER/LH_ROOT/LH_SSH_KEY，本次不上传任何文件。"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "配置齐备，将部署到 $LH_USER@$LH_HOST:$LH_ROOT"
+            echo "A 组配置齐备，将部署到 $LH_USER@$LH_HOST:$LH_ROOT"
           fi
 
       - name: Setup Node
@@ -81,9 +88,8 @@ jobs:
 
       # 本站不设 Lint 门禁：package.json 中未声明 `lint` 脚本，也未安装 eslint 工具链；
       # 类型检查由 Build 步的 `tsc -b` 承担。
-      # 本站 build = `tsc -b && vite build`。
-      # vite.config.ts 会把 package.json 的 version 经 define 注入 __APP_VERSION__，
-      # 由 Footer 渲染为「Power Widget vX.Y.Z」，作为线上核验的指纹锚点。
+      # vite.config.ts 把 package.json 的 version 经 define 注入 __APP_VERSION__，
+      # 由页头徽标与页脚渲染为 `vX.Y.Z`，作为线上核验的指纹锚点。
       - name: Build
         if: steps.cfg.outputs.ready == 'true'
         run: npm run build
@@ -99,7 +105,6 @@ jobs:
         run: |
           set -euo pipefail
           PORT="${LH_PORT:-22}"
-          # nginx 运行用户（见服务器 /etc/nginx/nginx.conf 的 user 指令）。
           WEB_OWNER=www-data
 
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
@@ -109,7 +114,7 @@ jobs:
 
           SSH_CMD="ssh -p $PORT -i $HOME/.ssh/lh_key -o BatchMode=yes -o ConnectTimeout=20 $LH_USER@$LH_HOST"
 
-          echo "::group::服务器环境"
+          echo "::group::服务器环境（A）"
           $SSH_CMD "whoami; hostname; echo '--- web root ---'; ls -la '$LH_ROOT' | head -20"
           echo "::endgroup::"
 
@@ -133,14 +138,13 @@ jobs:
               echo "产物较新（$ART_VER > $LIVE_VER），允许部署。"
             fi
           else
-            echo "::warning title=无线上版本记录::服务器 $LH_ROOT/.deployed-version 不存在（首次启用护栏），本次跳过降级检查。"
+            echo "::warning title=无线上版本记录::服务器 $LH_ROOT/.deployed-version 不存在，本次跳过降级检查。"
           fi
 
           # 上传前先备份现有站点，留退路（失败不阻断部署）
           $SSH_CMD "tar czf ~/webroot-backup-widget-\$(date +%F-%H%M%S).tar.gz -C '$LH_ROOT' . 2>/dev/null || true"
 
-          # 流式上传：tar over ssh，不依赖 rsync。
-          # --no-same-owner：不要把 runner 的 uid/gid 带到线上。
+          # 流式上传：tar over ssh。--no-same-owner：不要把 runner 的 uid/gid 带到线上。
           tar czf - -C dist . | $SSH_CMD "tar xzf - --no-same-owner -C '$LH_ROOT'"
           $SSH_CMD "chown -R $WEB_OWNER:$WEB_OWNER '$LH_ROOT'" || true
 
@@ -148,25 +152,19 @@ jobs:
           $SSH_CMD "printf '%s\n' '$ART_VER' > '$LH_ROOT/.deployed-version'"
           echo "已写入版本哨兵：$LH_ROOT/.deployed-version = $ART_VER"
 
-      # ⚠️ 自检步骤：**只做体检，绝不当门禁**。
-      # 实证（interleaved-pfc，2026-09-21）：境外 runner 到本服务器的 TLS 握手会被中间设备
-      # 中断（curl 秒级 exit 35），而部署本身已成功 —— 若把它当门禁会把成功判成失败。
-      # 因此：硬门禁只保留在 Deployment 步；本步骤失败只出 warning。
+      # ⚠️ 自检步骤：只做体检，绝不当门禁（境外 TLS 可能被中间设备中断，
+      # 而部署本身已成功）。硬门禁只保留在 Deployment 步，本步骤失败只出 warning。
       - name: Verify live site (self-check, never blocks)
         if: steps.cfg.outputs.ready == 'true'
         continue-on-error: true
         env:
           LH_HOST: ${{ secrets.LH_HOST }}
         run: |
-          # GHA 以 `bash -e {0}` 启动，必须先显式关掉 errexit，否则第一条命令失败就中止。
           set +e
           set -uo pipefail
           DOMAIN=widget.power-knowledge.tech
           URL="https://$DOMAIN/"
           LIVE=/tmp/live.html
-
-          # curl 的**退出码**与 **HTTP 状态码**是两件事：连接失败时 -w 给的是 000，
-          # 退出码才是 35。必须分别打印，否则 exit 35 会被误读成「返回了非 200」。
           ok=0
           for i in 1 2 3; do
             code=$(curl -sS -o "$LIVE" -w '%{http_code}' -m 20 "$URL"); rc=$?
@@ -174,27 +172,152 @@ jobs:
             if [ "$rc" = 0 ] && [ "$code" = "200" ]; then ok=1; break; fi
             sleep 5
           done
-
-          # 域名走不通时用 --resolve 钉到 IP 再试一次：SNI 仍是域名，
-          # 故这次成功=纯 DNS 问题、这次也失败=TLS 路径问题，两者可分。
           if [ "$ok" != 1 ] && [ -n "${LH_HOST:-}" ]; then
             code=$(curl -sS -o "$LIVE" -w '%{http_code}' -m 20 \
                    --resolve "$DOMAIN:443:$LH_HOST" "$URL"); rc=$?
             echo "改走 IP（SNI 不变）：http=$code curl_exit=$rc"
           fi
-
           if [ "$ok" = 1 ]; then
-            echo "首页引用的资源："
-            grep -oE 'assets/index-[A-Za-z0-9_-]+\.(js|css)' "$LIVE" | sort -u || true
             LOCAL_JS=$(basename "$(ls dist/assets/index-*.js | head -1)")
             echo "本次构建入口 JS: $LOCAL_JS"
             if grep -q "$LOCAL_JS" "$LIVE"; then
-              echo "::notice title=核验通过::线上入口 JS 与本次构建一致（$LOCAL_JS）"
+              echo "::notice title=核验通过（A）::线上入口 JS 与本次构建一致（$LOCAL_JS）"
             else
-              echo "::warning title=核验存疑::线上入口 JS 与本次构建不一致，可能是 CDN 缓存或部署未生效"
+              echo "::warning title=核验存疑（A）::线上入口 JS 与本次构建不一致，可能是 CDN 缓存或部署未生效"
             fi
           else
-            echo "::warning title=自检未通过（不影响本次部署）::域名多次访问均失败。"
-            echo "部署是否生效以 Deployment 步为硬门禁；此处失败请核对线上产物。"
+            echo "::warning title=自检未通过（A，不影响本次部署）::域名多次访问均失败。"
+          fi
+          exit 0
+
+  # ═══════════════════════════════════════════════════════
+  # B · 第二台（DSH 机）
+  # ═══════════════════════════════════════════════════════
+  deploy-secondary:
+    name: B · www.wx-seastar.cn
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check configuration
+        id: cfg
+        env:
+          LH2_HOST: ${{ secrets.LH2_HOST }}
+          LH2_USER: ${{ secrets.LH2_USER }}
+          LH2_ROOT: ${{ secrets.LH2_ROOT }}
+          LH2_SSH_KEY: ${{ secrets.LH2_SSH_KEY }}
+        run: |
+          if [ -z "$LH2_HOST" ] || [ -z "$LH2_USER" ] || [ -z "$LH2_ROOT" ] || [ -z "$LH2_SSH_KEY" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=已跳过轻量云部署（B 组）::未配置 LH2_HOST/LH2_USER/LH2_ROOT/LH2_SSH_KEY，本次不上传任何文件。"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "B 组配置齐备，将部署到 $LH2_USER@$LH2_HOST:$LH2_ROOT"
+          fi
+
+      - name: Setup Node
+        if: steps.cfg.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.cfg.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Build
+        if: steps.cfg.outputs.ready == 'true'
+        run: npm run build
+
+      - name: Deploy to server over SSH
+        if: steps.cfg.outputs.ready == 'true'
+        env:
+          LH2_HOST: ${{ secrets.LH2_HOST }}
+          LH2_USER: ${{ secrets.LH2_USER }}
+          LH2_ROOT: ${{ secrets.LH2_ROOT }}
+          LH2_SSH_KEY: ${{ secrets.LH2_SSH_KEY }}
+          LH2_PORT: ${{ secrets.LH2_PORT }}
+        run: |
+          set -euo pipefail
+          PORT="${LH2_PORT:-22}"
+          WEB_OWNER=www-data
+
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$LH2_SSH_KEY" > ~/.ssh/lh2_key
+          chmod 600 ~/.ssh/lh2_key
+          ssh-keyscan -p "$PORT" -H "$LH2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          SSH_CMD="ssh -p $PORT -i $HOME/.ssh/lh2_key -o BatchMode=yes -o ConnectTimeout=20 $LH2_USER@$LH2_HOST"
+
+          echo "::group::服务器环境（B）"
+          $SSH_CMD "whoami; hostname; echo '--- web root ---'; ls -la '$LH2_ROOT' | head -20"
+          echo "::endgroup::"
+
+          # ---------- 降级护栏（上传前） ----------
+          ART_VER=$(node -p "require('./package.json').version")
+          LIVE_VER=$($SSH_CMD "cat '$LH2_ROOT/.deployed-version' 2>/dev/null || true" \
+                     | tr -d '\r\n' | head -c 64)
+          echo "本次产物版本 : $ART_VER"
+          echo "线上已部署版本: ${LIVE_VER:-（无记录）}"
+
+          if [ -n "$LIVE_VER" ]; then
+            if [ "$LIVE_VER" = "$ART_VER" ]; then
+              echo "版本相同，按允许的重复部署处理。"
+            else
+              OLDEST=$(printf '%s\n%s\n' "$LIVE_VER" "$ART_VER" | sort -V | head -1)
+              if [ "$OLDEST" = "$ART_VER" ]; then
+                echo "::error title=拒绝降级部署（B）::本次产物 $ART_VER 严格早于线上 $LIVE_VER，已中止。"
+                exit 1
+              fi
+              echo "产物较新（$ART_VER > $LIVE_VER），允许部署。"
+            fi
+          else
+            echo "::warning title=无线上版本记录（B）::$LH2_ROOT/.deployed-version 不存在，跳过降级检查。"
+          fi
+
+          # 上传前备份
+          $SSH_CMD "tar czf ~/webroot-backup-widget-\$(date +%F-%H%M%S).tar.gz -C '$LH2_ROOT' . 2>/dev/null || true"
+
+          tar czf - -C dist . | $SSH_CMD "tar xzf - --no-same-owner -C '$LH2_ROOT'"
+          $SSH_CMD "chown -R $WEB_OWNER:$WEB_OWNER '$LH2_ROOT'" || true
+
+          $SSH_CMD "printf '%s\n' '$ART_VER' > '$LH2_ROOT/.deployed-version'"
+          echo "已写入版本哨兵：$LH2_ROOT/.deployed-version = $ART_VER"
+
+      - name: Verify live site (self-check, never blocks)
+        if: steps.cfg.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          LH2_HOST: ${{ secrets.LH2_HOST }}
+        run: |
+          set +e
+          set -uo pipefail
+          DOMAIN=www.wx-seastar.cn
+          URL="https://$DOMAIN/"
+          LIVE=/tmp/live-b.html
+          ok=0
+          for i in 1 2 3; do
+            code=$(curl -sS -o "$LIVE" -w '%{http_code}' -m 20 "$URL"); rc=$?
+            echo "第 ${i} 次请求：http=$code curl_exit=$rc"
+            if [ "$rc" = 0 ] && [ "$code" = "200" ]; then ok=1; break; fi
+            sleep 5
+          done
+          if [ "$ok" != 1 ] && [ -n "${LH2_HOST:-}" ]; then
+            code=$(curl -sS -o "$LIVE" -w '%{http_code}' -m 20 \
+                   --resolve "$DOMAIN:443:$LH2_HOST" "$URL"); rc=$?
+            echo "改走 IP（SNI 不变）：http=$code curl_exit=$rc"
+          fi
+          if [ "$ok" = 1 ]; then
+            LOCAL_JS=$(basename "$(ls dist/assets/index-*.js | head -1)")
+            echo "本次构建入口 JS: $LOCAL_JS"
+            if grep -q "$LOCAL_JS" "$LIVE"; then
+              echo "::notice title=核验通过（B）::线上入口 JS 与本次构建一致（$LOCAL_JS）"
+            else
+              echo "::warning title=核验存疑（B）::线上入口 JS 与本次构建不一致"
+            fi
+          else
+            echo "::warning title=自检未通过（B，不影响本次部署）::域名多次访问均失败。"
           fi
           exit 0
