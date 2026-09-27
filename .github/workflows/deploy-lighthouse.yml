@@ -144,6 +144,13 @@ jobs:
           # 上传前先备份现有站点，留退路（失败不阻断部署）
           $SSH_CMD "tar czf ~/webroot-backup-widget-\$(date +%F-%H%M%S).tar.gz -C '$LH_ROOT' . 2>/dev/null || true"
 
+          # 清空目标目录（保留 .deployed-version，稍后由本步骤重写）。
+          # 目的：产物文件名带内容哈希，纯增量解包会让旧版 index-*.js 永久残留
+          # （实测 2026-09-26：线上留了 9-21 的两个 ~1 MB 孤儿文件）。
+          # 备份已在上一行完成；此处用 find -delete 而非 `rm -rf "$LH_ROOT"`，
+          # 避免误删 web 根目录本身（若变量为空则后果不堪设想）。
+          $SSH_CMD "find '$LH_ROOT' -mindepth 1 -maxdepth 1 ! -name '.deployed-version' -exec rm -rf {} +"
+
           # 流式上传：tar over ssh。--no-same-owner：不要把 runner 的 uid/gid 带到线上。
           tar czf - -C dist . | $SSH_CMD "tar xzf - --no-same-owner -C '$LH_ROOT'"
           $SSH_CMD "chown -R $WEB_OWNER:$WEB_OWNER '$LH_ROOT'" || true
@@ -279,6 +286,9 @@ jobs:
 
           # 上传前备份
           $SSH_CMD "tar czf ~/webroot-backup-widget-\$(date +%F-%H%M%S).tar.gz -C '$LH2_ROOT' . 2>/dev/null || true"
+
+          # 清空目标目录（保留 .deployed-version）—— 与 A 组同因，防旧版哈希文件残留。
+          $SSH_CMD "find '$LH2_ROOT' -mindepth 1 -maxdepth 1 ! -name '.deployed-version' -exec rm -rf {} +"
 
           tar czf - -C dist . | $SSH_CMD "tar xzf - --no-same-owner -C '$LH2_ROOT'"
           $SSH_CMD "chown -R $WEB_OWNER:$WEB_OWNER '$LH2_ROOT'" || true
