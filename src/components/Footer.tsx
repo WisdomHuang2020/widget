@@ -49,11 +49,22 @@ export default function Footer() {
           </div>
         </div>
         <div className="border-t border-border mt-8 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* 版本串同时作为线上部署核验的指纹锚点，请勿移除或改写格式。
-              与页头徽标共用同一个 __APP_VERSION__，保证两处永远一致。 */}
-          <p className="text-text-muted text-sm">
-            Power Widget <span className="app-version">v{__APP_VERSION__}</span> · © 2026 仅供工程估算与学习参考
-          </p>
+          <div className="flex flex-col items-center md:items-start gap-1">
+            {/* 版本串同时作为线上部署核验的指纹锚点，请勿移除或改写格式。
+                与页头徽标共用同一个 __APP_VERSION__，保证两处永远一致。 */}
+            <p className="text-text-muted text-sm">
+              Power Widget <span className="app-version">v{__APP_VERSION__}</span> · © 2026 仅供工程估算与学习参考
+            </p>
+            {/* ICP 备案号：工信部要求网站底部展示并链接至 beian.miit.gov.cn */}
+            <a
+              href="https://beian.miit.gov.cn/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-text-muted hover:text-text-secondary text-sm transition-colors"
+            >
+              苏ICP备2026073104号
+            </a>
+          </div>
           <a
             href="https://github.com/WisdomHuang2020/widget"
             target="_blank"
