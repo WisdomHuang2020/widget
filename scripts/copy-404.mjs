@@ -23,8 +23,9 @@ const src = resolve(root, 'dist', 'index.html')
 const dst = resolve(root, 'dist', '404.html')
 
 if (!existsSync(src)) {
-  console.error(`[copy-404] 找不到 ${src} —— 是否漏跑 vite build？`)
-  process.exit(1)
+  // 用 throw 而非 process.exit(1)：同样的非零退出语义，但不依赖 Node 全局变量，
+  // 以免 eslint 的 no-undef 规则在未声明 node 环境的 scripts/ 目录下报错。
+  throw new Error(`[copy-404] 找不到 ${src} —— 是否漏跑 vite build？`)
 }
 
 copyFileSync(src, dst)
