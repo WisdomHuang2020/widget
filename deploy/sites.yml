@@ -10,18 +10,31 @@ sites:
     domain:  widget.power-knowledge.tech          # 正式发布目标（自有域名）
     pages:   https://wisdomhuang2020.github.io/widget/   # 兜底免费通道
     lighthouse:                                    # 腾讯云轻量应用服务器（与四站共用一台）
-      instance_id: lhins-n1uhxlwk
+      instance_id: lhins-6i7vay90
       region:      ap-shanghai
-      host:        150.158.164.41
+      host:        43.142.148.37                   # 实例名 wisdom2026 / 主机名 VM-0-12-ubuntu / 内网 10.0.0.12
       user:        root
       web_root:    /var/www/widget                 # 必须等于 nginx 的 root
-      key:         ~/.ssh/widget_ci                # 部署私钥；公钥须已装入 authorized_keys
+      key:         ~/.ssh/deepseek_ops             # 运维私钥（ED25519）；CI 侧用 LH_SSH_KEY secret
       port:        22
       owner:       www-data                        # 上传后 chown 的属主
       cert:        /etc/letsencrypt/live/pk-wildcard   # 通配符证书，已覆盖 *.power-knowledge.tech
+    alias:                                         # 第二入口（同一份产物目录）
+      domain:  www.wx-seastar.cn
+      domain2: wx-seastar.cn                       # 裸域 301 归一到 www
+      web_root: /var/www/widget                    # ⚠️ 与本站共用同一目录，两端同步生效
+      cert:    /etc/letsencrypt/live/www.wx-seastar.cn
     dist:    dist
     build:   npm run build
     secrets: [LH_HOST, LH_USER, LH_ROOT, LH_SSH_KEY, LH_PORT]
+
+# 变更记录：
+#   2026-09-27  目标机由源机 lhins-n1uhxlwk / 150.158.164.41 切换为
+#               lhins-6i7vay90 / 43.142.148.37（源机已重装待退订）。
+#               CI 工作流 deploy-lighthouse.yml 同步改为两组部署：
+#                 A 组 widget.power-knowledge.tech
+#                 B 组 www.wx-seastar.cn（与 A 共用 /var/www/widget）
+#
 
 # 注意：
 #   1. www.widget.power-knowledge.tech 不在证书 SAN 内（通配符只匹配一级子域），
