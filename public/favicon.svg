@@ -1,15 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <!--
     Power Widget —— favicon
-    站群 favicon 规范（2026-09-30 定）：不追求"让人认出具体物件"，
-    而是取本站最具辨识度的"象形笔画"，6 站同风格、16px 下彼此可区分。
-    本站笔画 = 等号（"得出结果的那一步"，也是计算器最简的视觉签名）。
-    配色：深底 #0a0a0a / teal #14b8a6 主线 / amber #f59e0b 仅标关键点。
-    amber 只落在第二横（关键的"答案"那一笔），第一横用 teal 作衬托。
+    造型：计算器（本站首页主图标 Calculator 的加粗填实版），与页头 / 页脚 BrandMark 同一套 path。
+    语义取自本站真源图标 Calculator（与主入口站 sites.json 的 icon 一致）。
+    配色遵循站群统一规范：深底 #0a0a0a / 主形 teal #14b8a6 / amber #f59e0b 仅标关键点
+    （amber 是机身最下一行 —— 计算器上的结果键）。
+    16px 可读性：实心方机身 + 屏幕横槽 + 按键，与 ipfc 的两条独立横杠形状不同（有方框轮廓）。
   -->
   <rect width="32" height="32" rx="7" fill="#0a0a0a"/>
-  <g stroke-linecap="round">
-    <line x1="7.5" y1="12.2" x2="24.5" y2="12.2" stroke="#14b8a6" stroke-width="3"/>
-    <line x1="7.5" y1="20.2" x2="24.5" y2="20.2" stroke="#f59e0b" stroke-width="3"/>
-  </g>
+  <rect x="6" y="3.4" width="20" height="25.2" rx="3.4" fill="#14b8a6"/>
+  <rect x="9.4" y="7" width="13.2" height="4" rx="1.4" fill="#0a0a0a"/>
+  <circle cx="10.9" cy="15.4" r="1.35" fill="#0a0a0a"/>
+  <circle cx="16" cy="15.4" r="1.35" fill="#0a0a0a"/>
+  <circle cx="21.1" cy="15.4" r="1.35" fill="#0a0a0a"/>
+  <circle cx="10.9" cy="20.1" r="1.35" fill="#0a0a0a"/>
+  <circle cx="16" cy="20.1" r="1.35" fill="#0a0a0a"/>
+  <circle cx="21.1" cy="20.1" r="1.35" fill="#0a0a0a"/>
+  <rect x="10.9" y="23.6" width="10.2" height="2.4" rx="1.2" fill="#f59e0b"/>
 </svg>

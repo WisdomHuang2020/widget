@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, Calculator, LayoutGrid, Waves, BatteryCharging, Info } from 'lucide-react'
+import { Menu, X, LayoutGrid, Waves, BatteryCharging, Info } from 'lucide-react'
+import BrandMark from './BrandMark'
 
 const navLinks = [
   { path: '/', label: '首页', icon: LayoutGrid },
@@ -20,7 +21,7 @@ export default function Header() {
           to="/"
           className="flex items-center gap-2 text-text-primary hover:text-primary-light transition-colors"
         >
-          <Calculator className="w-6 h-6 text-primary-light" />
+          <BrandMark className="w-6 h-6" />
           <span className="font-bold text-lg tracking-tight">Power Widget</span>
           {/* 版本号在页头与页脚各显示一处，两处共用同一个 __APP_VERSION__ 常量
               （由 vite define 从 package.json 注入），故不存在硬编码各自漂移的风险。
