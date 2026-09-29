@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { CircuitBoard, Github, Waves, BatteryCharging, Info } from 'lucide-react'
+import { Calculator, Github, Waves, BatteryCharging, Info } from 'lucide-react'
 
 export default function Footer() {
   return (
@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <CircuitBoard className="w-5 h-5 text-primary-light" />
+              <Calculator className="w-5 h-5 text-primary-light" />
               <span className="font-bold text-text-primary">Power Widget</span>
             </div>
             <p className="text-text-secondary text-sm leading-relaxed">

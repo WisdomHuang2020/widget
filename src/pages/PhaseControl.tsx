@@ -95,7 +95,7 @@ export default function PhaseControl() {
                 step={1}
                 value={alpha}
                 onChange={(e) => setAlpha(clampAlpha(parseFloat(e.target.value)))}
-                className="flex-1 h-1.5 accent-[#06b6d4] cursor-pointer"
+                className="flex-1 h-1.5 accent-[#14b8a6] cursor-pointer"
                 aria-label="触发角滑块"
               />
               <input
@@ -225,7 +225,7 @@ export default function PhaseControl() {
                 <Line
                   type="linear"
                   dataKey="urms"
-                  stroke="#06b6d4"
+                  stroke="#14b8a6"
                   strokeWidth={2.5}
                   dot={false}
                   isAnimationActive={false}

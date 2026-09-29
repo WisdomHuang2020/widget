@@ -25,7 +25,9 @@
 - **公式**：KaTeX（经 `InlineMath` / `MathBlock` 组件渲染）
 - **图标**：lucide-react
 
-主色为 cyan（`#06b6d4`），与姊妹站区分：interleavedpfc = 蓝、llc/ahb = teal。
+主色为 teal（`--color-primary #0f766e` / `--color-primary-light #14b8a6` / `--color-primary-dark #134e4a`），
+与站群其余站点（llc / ahb / interleavedpfc / 主入口）完全一致；amber（`#f59e0b`）只用于标记关键点。
+各站之间不再以主色区分，辨识改由站点图标（favicon / 页头 logo）承担。
 底色与语义色沿用统一深色设计系统。
 
 ## 本地开发
