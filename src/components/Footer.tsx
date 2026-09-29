@@ -62,7 +62,7 @@ export default function Footer() {
               rel="noopener noreferrer"
               className="text-text-muted hover:text-text-secondary text-sm transition-colors"
             >
-              苏ICP备2026073104号
+              苏ICP备2026073104号-1
             </a>
           </div>
           <a
