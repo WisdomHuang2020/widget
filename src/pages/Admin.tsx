@@ -17,6 +17,8 @@ import {
   X,
   Paperclip,
   Download,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import {
   adminLogin,
@@ -40,6 +42,55 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'read', label: '已读' },
   { key: 'archived', label: '已归档' },
 ]
+
+/**
+ * 带「显示密码」开关的密码框。
+ * 看不见字符时很难判断是"多打了一位"还是"输入法把字母吃掉了"，只能反复重输。
+ * 按钮必须 type="button"，否则它会成为表单的提交按钮之一，回车即提交空表单。
+ *
+ * 本站 .input-field 本身已是 width:100%，这里只补右侧 padding 给按钮让位。
+ */
+function PasswordField({
+  id,
+  value,
+  onChange,
+  autoComplete,
+  minLength,
+  autoFocus = false,
+}: {
+  id: string
+  value: string
+  onChange: (v: string) => void
+  autoComplete?: string
+  minLength?: number
+  autoFocus?: boolean
+}) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="input-field pr-10"
+        autoComplete={autoComplete}
+        minLength={minLength}
+        required
+        autoFocus={autoFocus}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        aria-label={show ? '隐藏密码' : '显示密码'}
+        title={show ? '隐藏密码' : '显示密码'}
+        className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-text-muted transition-colors hover:text-text-primary"
+      >
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  )
+}
 
 function fmtSize(n: number): string {
   if (n < 1024) return `${n} B`
@@ -284,14 +335,11 @@ export default function Admin() {
               <label htmlFor="adm-pass" className="block text-xs font-medium text-text-secondary mb-1.5">
                 密码
               </label>
-              <input
+              <PasswordField
                 id="adm-pass"
-                type="password"
                 value={inputPass}
-                onChange={(e) => setInputPass(e.target.value)}
-                className="input-field"
+                onChange={setInputPass}
                 autoComplete="current-password"
-                required
                 autoFocus
               />
             </div>
@@ -553,44 +601,35 @@ export default function Admin() {
                   <label htmlFor="pw-cur" className="block text-xs font-medium text-text-secondary mb-1.5">
                     当前密码
                   </label>
-                  <input
+                  <PasswordField
                     id="pw-cur"
-                    type="password"
                     value={curPass}
-                    onChange={(e) => setCurPass(e.target.value)}
-                    className="input-field"
+                    onChange={setCurPass}
                     autoComplete="current-password"
-                    required
                   />
                 </div>
                 <div>
                   <label htmlFor="pw-new" className="block text-xs font-medium text-text-secondary mb-1.5">
                     新密码 <span className="text-text-muted font-normal">（至少 10 位）</span>
                   </label>
-                  <input
+                  <PasswordField
                     id="pw-new"
-                    type="password"
                     value={newPass}
-                    onChange={(e) => setNewPass(e.target.value)}
-                    className="input-field"
+                    onChange={setNewPass}
                     autoComplete="new-password"
                     minLength={10}
-                    required
                   />
                 </div>
                 <div>
                   <label htmlFor="pw-cfm" className="block text-xs font-medium text-text-secondary mb-1.5">
                     确认新密码
                   </label>
-                  <input
+                  <PasswordField
                     id="pw-cfm"
-                    type="password"
                     value={confirmPass}
-                    onChange={(e) => setConfirmPass(e.target.value)}
-                    className="input-field"
+                    onChange={setConfirmPass}
                     autoComplete="new-password"
                     minLength={10}
-                    required
                   />
                 </div>
 
