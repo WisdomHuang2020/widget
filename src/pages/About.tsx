@@ -1,4 +1,5 @@
 import { ExternalLink, AlertTriangle, BookOpen, Wrench } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import SectionCard from '../components/SectionCard'
 import MathBlock from '../components/MathBlock'
 import InlineMath from '../components/InlineMath'
@@ -21,7 +22,12 @@ export default function About() {
           使结果可以被手工复核，而不是一个不可追溯的数字。
         </p>
         <p className="text-xs text-text-muted leading-relaxed mt-3">
-          全部计算在浏览器本地完成，不依赖后端服务，不上传任何输入数据。
+          所有计算均在浏览器本地完成，不依赖后端服务，不上传任何计算输入。
+          唯一会把数据发往服务器的是
+          <Link to="/feedback" className="text-primary-light hover:underline mx-0.5">
+            读者留言
+          </Link>
+          页 —— 那里提交的反馈会存到本站自建的数据库，且仅作者本人可见。
           本站与姊妹站（下表）共用同一套前端技术栈与部署链路。
         </p>
       </SectionCard>

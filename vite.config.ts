@@ -18,4 +18,14 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  // 开发期把 /api 转发到本机运行的后端（node server/index.mjs）。
+  // 生产环境由 nginx 反代，路径一致，前端无需区分。
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8791',
+        changeOrigin: false,
+      },
+    },
+  },
 })

@@ -1,0 +1,42 @@
+[Unit]
+Description=widget 站点留言板 API
+Documentation=https://github.com/WisdomHuang2020/widget
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/widget-api
+
+Environment=NODE_ENV=production
+Environment=PORT=8791
+Environment=DB_PATH=/var/lib/widget-api/data.db
+Environment=COOKIE_SECURE=1
+Environment=ALLOWED_ORIGINS=https://wisdomhuang2020.github.io
+
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning /opt/widget-api/index.mjs
+
+Restart=always
+RestartSec=3
+
+User=www-data
+Group=www-data
+
+# ── 进程加固 ──
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/widget-api
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+SystemCallArchitectures=native
+
+# 注：刻意不加 MemoryDenyWriteExecute —— V8 的 JIT 需要可写可执行内存，
+#     开启该项会导致 Node 启动即崩溃。
+
+[Install]
+WantedBy=multi-user.target

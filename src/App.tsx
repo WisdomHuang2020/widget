@@ -4,6 +4,8 @@ import Home from './pages/Home'
 import PhaseControl from './pages/PhaseControl'
 import Battery from './pages/Battery'
 import About from './pages/About'
+import Feedback from './pages/Feedback'
+import Admin from './pages/Admin'
 
 /**
  * 站点路由。
@@ -29,6 +31,11 @@ function App() {
           <Route path="/phase" element={<PhaseControl />} />
           <Route path="/battery" element={<Battery />} />
           <Route path="/about" element={<About />} />
+          <Route path="/feedback" element={<Feedback />} />
+          {/* 后台不在导航中露出，仅通过直达 URL 访问。
+              真正的权限边界在服务端（/api/admin/* 校验会话），
+              前端隐藏路径不构成任何安全保护，只是不打扰普通读者。 */}
+          <Route path="/admin" element={<Admin />} />
         </Routes>
       </Layout>
     </BrowserRouter>

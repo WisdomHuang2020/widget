@@ -24,6 +24,14 @@ sites:
       domain2: wx-seastar.cn                       # 裸域 301 归一到 www
       web_root: /var/www/widget                    # ⚠️ 与本站共用同一目录，两端同步生效
       cert:    /etc/letsencrypt/live/www.wx-seastar.cn
+    backend:                                       # 留言板 API（2026-11-02 新增）
+      path:        /opt/widget-api
+      service:     widget-api.service
+      listen:      127.0.0.1:8791                  # 只监听回环，由 nginx 反代 /api/
+      db:          /var/lib/widget-api/data.db     # SQLite (WAL)
+      run_as:      www-data
+      proxy:       /etc/nginx/sites-available/widget 的 location /api/
+      admin:       power-admin
     dist:    dist
     build:   npm run build
     secrets: [LH_HOST, LH_USER, LH_ROOT, LH_SSH_KEY, LH_PORT]
@@ -34,10 +42,13 @@ sites:
 #               CI 工作流 deploy-lighthouse.yml 同步改为两组部署：
 #                 A 组 widget.power-knowledge.tech
 #                 B 组 www.wx-seastar.cn（与 A 共用 /var/www/widget）
-#
+#   2026-11-02  新增留言板后端（Node + SQLite + systemd），nginx 反代 /api/。
+#               注意：CI 只发布 dist，**不部署 /opt/widget-api**；
+#               后端代码变更须按 server/README.md 手工同步。
 
 # 注意：
-#   1. www.widget.power-knowledge.tech 不在证书 SAN 内（通配符只匹配一级子域），
-#      故本站不配置 www 别名与对应 301 规则。
+#   1. www.widget.power-knowledge.tech 已可用：2026-09-26 起裸名统一 301 到 www，
+#      证书经 HTTP-01 单独补签（DNSPod 免费版不支持三级子域 TXT，故不走 DNS-01）。
 #   2. nginx 配置为独立文件 /etc/nginx/sites-available/widget，
 #      不写进公共的 ssl-sites，避免波及同机其它站。
+#   3. 后端数据不在 git 内，也不在 CI 覆盖范围内 —— 发布 dist 不会动数据库。

@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, LayoutGrid, Waves, BatteryCharging, Info } from 'lucide-react'
+import { Menu, X, LayoutGrid, Waves, BatteryCharging, Info, MessageSquare } from 'lucide-react'
 import BrandMark from './BrandMark'
 
 const navLinks = [
   { path: '/', label: '首页', icon: LayoutGrid },
   { path: '/phase', label: '切相调压', icon: Waves },
   { path: '/battery', label: '电池估算', icon: BatteryCharging },
+  { path: '/feedback', label: '留言', icon: MessageSquare },
   { path: '/about', label: '关于', icon: Info },
 ]
 
