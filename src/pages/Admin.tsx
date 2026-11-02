@@ -13,8 +13,9 @@ import {
   ShieldAlert,
   Mail,
   MailCheck,
+  Settings,
+  X,
 } from 'lucide-react'
-import SectionCard from '../components/SectionCard'
 import {
   adminLogin,
   adminLogout,
@@ -73,7 +74,8 @@ export default function Admin() {
   const [listError, setListError] = useState('')
   const [busyId, setBusyId] = useState<number | null>(null)
 
-  // 改密码
+  // 改密码（收纳在「设置」弹层内，不再常驻列表下方）
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [curPass, setCurPass] = useState('')
   const [newPass, setNewPass] = useState('')
   const [confirmPass, setConfirmPass] = useState('')
@@ -129,6 +131,24 @@ export default function Admin() {
     if (auth === 'in') void load(filter)
   }, [auth, filter, load])
 
+  // 设置弹层：Esc 关闭
+  useEffect(() => {
+    if (!settingsOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSettingsOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [settingsOpen])
+
+  function closeSettings() {
+    setSettingsOpen(false)
+    setPwMsg(null)
+    setCurPass('')
+    setNewPass('')
+    setConfirmPass('')
+  }
+
   async function handleLogin(e: FormEvent) {
     e.preventDefault()
     setLoginError('')
@@ -154,6 +174,7 @@ export default function Admin() {
     setAuth('out')
     setItems([])
     setFilter('all')
+    setSettingsOpen(false)
   }
 
   async function handleStatus(id: number, status: MessageStatus) {
@@ -311,6 +332,13 @@ export default function Admin() {
             刷新
           </button>
           <button
+            onClick={() => setSettingsOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-text-secondary border border-border hover:text-primary-light hover:border-primary-light/50 transition-colors"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            设置
+          </button>
+          <button
             onClick={() => void handleLogout()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-text-secondary border border-border hover:text-danger hover:border-danger/50 transition-colors"
           >
@@ -447,79 +475,130 @@ export default function Admin() {
         </div>
       )}
 
-      {/* 改密码 */}
-      <SectionCard title="修改密码">
-        <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
-          <div>
-            <label htmlFor="pw-cur" className="block text-xs font-medium text-text-secondary mb-1.5">
-              当前密码
-            </label>
-            <input
-              id="pw-cur"
-              type="password"
-              value={curPass}
-              onChange={(e) => setCurPass(e.target.value)}
-              className="input-field"
-              autoComplete="current-password"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="pw-new" className="block text-xs font-medium text-text-secondary mb-1.5">
-              新密码 <span className="text-text-muted font-normal">（至少 10 位）</span>
-            </label>
-            <input
-              id="pw-new"
-              type="password"
-              value={newPass}
-              onChange={(e) => setNewPass(e.target.value)}
-              className="input-field"
-              autoComplete="new-password"
-              minLength={10}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="pw-cfm" className="block text-xs font-medium text-text-secondary mb-1.5">
-              确认新密码
-            </label>
-            <input
-              id="pw-cfm"
-              type="password"
-              value={confirmPass}
-              onChange={(e) => setConfirmPass(e.target.value)}
-              className="input-field"
-              autoComplete="new-password"
-              minLength={10}
-              required
-            />
-          </div>
-
-          {pwMsg && (
-            <div
-              className={`p-3 rounded-md border flex gap-2.5 ${
-                pwMsg.type === 'ok'
-                  ? 'bg-success/10 border-success/30'
-                  : 'bg-danger/10 border-danger/30'
-              }`}
-            >
-              <p className="text-xs text-text-secondary">{pwMsg.text}</p>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={pwBusy}
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-primary text-white hover:bg-primary-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      {/* 设置弹层：修改密码收纳在这里，不再常驻留言列表下方 */}
+      {settingsOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/70 p-4 sm:p-8"
+          onMouseDown={closeSettings}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-title"
+            className="w-full max-w-md card-surface p-6 my-8 shadow-2xl"
+            onMouseDown={(e) => e.stopPropagation()}
           >
-            {pwBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
-            {pwBusy ? '提交中…' : '更新密码'}
-          </button>
-        </form>
-        <p className="text-[11px] text-text-muted mt-4 leading-relaxed">
-          修改后，其它设备上的登录会立即失效，仅当前浏览器保持登录。
-        </p>
-      </SectionCard>
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h2 id="settings-title" className="text-base font-semibold text-text-primary flex items-center gap-2">
+                  <Settings className="w-4 h-4 text-primary-light" />
+                  设置
+                </h2>
+                <p className="text-[11px] text-text-muted mt-1">
+                  已登录：<span className="font-mono text-text-secondary">{username}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeSettings}
+                aria-label="关闭设置"
+                className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-elevated transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="border-t border-border pt-5">
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2 mb-4">
+                <KeyRound className="w-4 h-4 text-primary-light" />
+                修改密码
+              </h3>
+
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div>
+                  <label htmlFor="pw-cur" className="block text-xs font-medium text-text-secondary mb-1.5">
+                    当前密码
+                  </label>
+                  <input
+                    id="pw-cur"
+                    type="password"
+                    value={curPass}
+                    onChange={(e) => setCurPass(e.target.value)}
+                    className="input-field"
+                    autoComplete="current-password"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="pw-new" className="block text-xs font-medium text-text-secondary mb-1.5">
+                    新密码 <span className="text-text-muted font-normal">（至少 10 位）</span>
+                  </label>
+                  <input
+                    id="pw-new"
+                    type="password"
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    className="input-field"
+                    autoComplete="new-password"
+                    minLength={10}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="pw-cfm" className="block text-xs font-medium text-text-secondary mb-1.5">
+                    确认新密码
+                  </label>
+                  <input
+                    id="pw-cfm"
+                    type="password"
+                    value={confirmPass}
+                    onChange={(e) => setConfirmPass(e.target.value)}
+                    className="input-field"
+                    autoComplete="new-password"
+                    minLength={10}
+                    required
+                  />
+                </div>
+
+                {pwMsg && (
+                  <div
+                    className={`p-3 rounded-md border flex gap-2.5 ${
+                      pwMsg.type === 'ok'
+                        ? 'bg-success/10 border-success/30'
+                        : 'bg-danger/10 border-danger/30'
+                    }`}
+                  >
+                    <p className="text-xs text-text-secondary">{pwMsg.text}</p>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={pwBusy}
+                    className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-primary text-white hover:bg-primary-light disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {pwBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                    {pwBusy ? '提交中…' : '更新密码'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeSettings}
+                    className="px-4 py-2 rounded-md text-sm font-medium text-text-secondary border border-border hover:text-text-primary hover:border-border-light transition-colors"
+                  >
+                    关闭
+                  </button>
+                </div>
+              </form>
+
+              <p className="text-[11px] text-text-muted mt-4 leading-relaxed">
+                修改后，其它设备上的登录会立即失效，仅当前浏览器保持登录。
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
