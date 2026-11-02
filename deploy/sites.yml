@@ -19,11 +19,12 @@ sites:
       port:        22
       owner:       www-data                        # 上传后 chown 的属主
       cert:        /etc/letsencrypt/live/pk-wildcard   # 通配符证书，已覆盖 *.power-knowledge.tech
-    alias:                                         # 第二入口（同一份产物目录）
-      domain:  www.wx-seastar.cn
-      domain2: wx-seastar.cn                       # 裸域 301 归一到 www
-      web_root: /var/www/widget                    # ⚠️ 与本站共用同一目录，两端同步生效
-      cert:    /etc/letsencrypt/live/www.wx-seastar.cn
+    # 第二入口：已于 2026-09-30 撤销。
+    #   www.wx-seastar.cn 当时与本站共用 /var/www/widget，现已移交 SEA☆STAR 实益达官网
+    #   （独立仓库 WisdomHuang2020/wx-seastar，web 根 /var/www/wx-seastar）。
+    #   2026-11-02 复核：wx-seastar.cn 的权威解析已指向 47.89.150.205，
+    #   且整站 301 到 www.wx-seastar.com/cn/，与本站无任何关系。
+    #   因此本站产物只需发布到 /var/www/widget 一处，留言板的 /api/ 也只配在该 vhost。
     backend:                                       # 留言板 API（2026-11-02 新增）
       path:        /opt/widget-api
       service:     widget-api.service

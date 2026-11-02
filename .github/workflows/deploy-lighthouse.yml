@@ -1,14 +1,17 @@
 name: Deploy to Tencent Lighthouse
 
-# widget.power-knowledge.tech → 150.158.164.41（lhins-n1uhxlwk，站群机）/var/www/widget
+# widget.power-knowledge.tech → 43.142.148.37（lhins-6i7vay90）/var/www/widget
 #
 # 变更说明（2026-09-30）：
 #   本工作流原为「联合部署」——一次 push 把同一份构建产物同时发布到两个自有域名：
-#     A · widget.power-knowledge.tech → 150.158.164.41 /var/www/widget
-#     B · www.wx-seastar.cn           → 43.142.148.37 /var/www/widget
+#     A · widget.power-knowledge.tech → 43.142.148.37 /var/www/widget
+#     B · www.wx-seastar.cn           → 同机（当时共用 /var/www/widget）
 #   wx-seastar.cn 已于 2026-09-30 移交给 SEA☆STAR 实益达官网
 #   （仓库 WisdomHuang2020/wx-seastar，web 根 /var/www/wx-seastar，nginx 的 root 已改），
 #   故 **B 组 deploy-secondary job 已移除** —— 本文件现在只负责 A。
+#
+# 注：2026-09-27 起目标机已由 lhins-n1uhxlwk / 150.158.164.41 切换至本机，
+#     该 IP 只作历史记录，不应再出现在部署路径中。
 #
 # 所需 repository secrets（仅 A 组）：
 #   LH_HOST / LH_USER / LH_ROOT / LH_SSH_KEY      （LH_PORT 可选，缺省 22）
