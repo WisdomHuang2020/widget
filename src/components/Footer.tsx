@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Github, Waves, BatteryCharging, Info } from 'lucide-react'
+import { Github, Waves, BatteryCharging, Info, House } from 'lucide-react'
 import BrandMark from './BrandMark'
 
 export default function Footer() {
@@ -15,6 +15,16 @@ export default function Footer() {
             <p className="text-text-secondary text-sm leading-relaxed">
               面向 LED 驱动与锂电池应用的在线工程计算器，涵盖切相调压估算与低功耗产品电池选型。
             </p>
+            {/* 返回站群入口（2026-11-02 新增）：本站是 power-knowledge.tech 站群的子站。
+                图标用 `House` —— lucide-react 0.487 里 `Home` 已改名，写 `Home` 会构建失败。
+                样式全走本站已有 token，不新造颜色。 */}
+            <a
+              href="https://power-knowledge.tech/"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-surface-elevated px-3.5 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-primary-light/50 hover:text-primary-light"
+            >
+              <House className="h-4 w-4" />
+              返回站群入口
+            </a>
           </div>
           <div>
             <h4 className="font-semibold text-text-primary mb-4 text-sm uppercase tracking-wider">
