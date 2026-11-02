@@ -84,9 +84,9 @@ function PasswordField({
         onClick={() => setShow((v) => !v)}
         aria-label={show ? '隐藏密码' : '显示密码'}
         title={show ? '隐藏密码' : '显示密码'}
-        className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-text-muted transition-colors hover:text-text-primary"
+        className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-text-secondary transition-colors hover:text-text-primary"
       >
-        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        {show ? <EyeOff className="h-[17px] w-[17px]" /> : <Eye className="h-[17px] w-[17px]" />}
       </button>
     </div>
   )
