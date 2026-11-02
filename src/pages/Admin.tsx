@@ -15,6 +15,8 @@ import {
   MailCheck,
   Settings,
   X,
+  Paperclip,
+  Download,
 } from 'lucide-react'
 import {
   adminLogin,
@@ -38,6 +40,12 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'read', label: '已读' },
   { key: 'archived', label: '已归档' },
 ]
+
+function fmtSize(n: number): string {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`
+  return `${(n / 1024 / 1024).toFixed(1)} MB`
+}
 
 function fmtDate(iso: string): string {
   const d = new Date(iso)
@@ -422,6 +430,31 @@ export default function Admin() {
               <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap break-words">
                 {m.content}
               </p>
+
+              {m.attachments && m.attachments.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border">
+                  <p className="text-[11px] text-text-muted mb-2 flex items-center gap-1.5">
+                    <Paperclip className="w-3 h-3" />
+                    附件 {m.attachments.length} 个
+                  </p>
+                  <ul className="space-y-1.5">
+                    {m.attachments.map((a) => (
+                      <li key={a.id}>
+                        {/* 下载走同源 /api/，靠会话 Cookie 鉴权；服务端一律以
+                            attachment 下发，不会在浏览器里内联渲染。 */}
+                        <a
+                          href={`/api/admin/attachments/${a.id}`}
+                          className="inline-flex flex-wrap items-center gap-2 text-xs text-text-secondary hover:text-primary-light transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5 shrink-0" />
+                          <span className="break-all">{a.name}</span>
+                          <span className="shrink-0 text-text-muted tabular">({fmtSize(a.size)})</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {m.contact && (
                 <p className="text-xs text-text-secondary mt-3 pt-3 border-t border-border">

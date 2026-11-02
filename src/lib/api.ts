@@ -66,12 +66,38 @@ async function request<T>(
 }
 
 // ── 公开接口 ────────────────────────────────────────────────────────
+/** 附件以 base64 随 JSON 提交：单文件 2MB、最多 3 个，后端按魔数复核类型。 */
+export interface AttachmentInput {
+  name: string
+  mime: string
+  data: string
+}
+
 export interface FeedbackPayload {
   page: string
   content: string
   contact?: string
   /** 蜜罐字段，正常用户不填；前端固定留空 */
   website?: string
+  files?: AttachmentInput[]
+}
+
+/** 读取 File 为 base64（去掉 dataURL 前缀）。 */
+export function fileToPayload(f: File): Promise<AttachmentInput> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const url = String(reader.result || '')
+      const comma = url.indexOf(',')
+      resolve({
+        name: f.name,
+        mime: f.type || 'application/octet-stream',
+        data: comma >= 0 ? url.slice(comma + 1) : '',
+      })
+    }
+    reader.onerror = () => reject(new Error('读取文件失败'))
+    reader.readAsDataURL(f)
+  })
 }
 
 export async function submitFeedback(payload: FeedbackPayload): Promise<void> {
@@ -84,6 +110,13 @@ export async function submitFeedback(payload: FeedbackPayload): Promise<void> {
 // ── 管理接口 ────────────────────────────────────────────────────────
 export type MessageStatus = 'new' | 'read' | 'archived'
 
+export interface Attachment {
+  id: number
+  name: string
+  mime: string
+  size: number
+}
+
 export interface AdminMessage {
   id: number
   page: string
@@ -91,6 +124,7 @@ export interface AdminMessage {
   contact: string | null
   status: MessageStatus
   created_at: string
+  attachments?: Attachment[]
 }
 
 export interface MessageListResult {

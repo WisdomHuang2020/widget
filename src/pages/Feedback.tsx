@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { MessageSquare, Send, CheckCircle2, AlertTriangle, Loader2, ShieldCheck } from 'lucide-react'
+import { MessageSquare, Send, CheckCircle2, AlertTriangle, Loader2, ShieldCheck, Paperclip, X } from 'lucide-react'
 import SectionCard from '../components/SectionCard'
-import { submitFeedback, ApiError } from '../lib/api'
+import { submitFeedback, fileToPayload, ApiError } from '../lib/api'
 
 const PAGE_OPTIONS = [
   '首页',
@@ -14,16 +14,46 @@ const PAGE_OPTIONS = [
 const MIN_LEN = 10
 const MAX_LEN = 4000
 
+// 附件限制与后端 server/index.mjs 的 ATTACH 常量保持一致。
+// 前端拦一道不是"防坏人"（那由服务端负责），而是让读者在选文件时就知道超限，
+// 而不是写完整篇问题描述、点了提交才被打回。
+const MAX_FILES = 3
+const MAX_FILE_MB = 2
+const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/csv'
+
 export default function Feedback() {
   const [page, setPage] = useState(PAGE_OPTIONS[0])
   const [content, setContent] = useState('')
   const [contact, setContact] = useState('')
   const [honeypot, setHoneypot] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [fileErr, setFileErr] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
 
   const tooShort = content.trim().length > 0 && content.trim().length < MIN_LEN
+
+  function handleFiles(list: FileList | null) {
+    setFileErr('')
+    if (!list || list.length === 0) return
+    const merged = [...files, ...Array.from(list)]
+    if (merged.length > MAX_FILES) {
+      setFileErr(`最多 ${MAX_FILES} 个附件。`)
+      return
+    }
+    const tooBig = merged.find((f) => f.size > MAX_FILE_MB * 1024 * 1024)
+    if (tooBig) {
+      setFileErr(`「${tooBig.name}」超过 ${MAX_FILE_MB} MB，请先压缩或只截取相关部分。`)
+      return
+    }
+    setFiles(merged)
+  }
+
+  function removeFile(i: number) {
+    setFiles(files.filter((_, j) => j !== i))
+    setFileErr('')
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -36,15 +66,19 @@ export default function Feedback() {
 
     setSubmitting(true)
     try {
+      const payloadFiles = files.length ? await Promise.all(files.map(fileToPayload)) : undefined
       await submitFeedback({
         page,
         content: content.trim(),
         contact: contact.trim() || undefined,
         website: honeypot,
+        files: payloadFiles,
       })
       setDone(true)
       setContent('')
       setContact('')
+      setFiles([])
+      setFileErr('')
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '网络异常，提交未成功，请稍后再试。')
     } finally {
@@ -159,6 +193,51 @@ export default function Feedback() {
               style={{ fontFamily: 'inherit' }}
               autoComplete="off"
             />
+          </div>
+
+          <div>
+            <label htmlFor="fb-files" className="block text-xs font-medium text-text-secondary mb-1.5">
+              附图 / 附件{' '}
+              <span className="text-text-muted font-normal">（可选，最多 {MAX_FILES} 个，单个 ≤ {MAX_FILE_MB} MB）</span>
+            </label>
+            <input
+              id="fb-files"
+              type="file"
+              multiple
+              accept={ACCEPT}
+              onChange={(e) => {
+                handleFiles(e.target.files)
+                // 清空 value：同一文件连续选两次不会触发 change，
+                // 而用户往往正是在"选错了再选一次"时遇到这个问题
+                e.target.value = ''
+              }}
+              className="block w-full text-xs text-text-secondary file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-border file:bg-surface-elevated file:px-3 file:py-1.5 file:text-xs file:text-text-secondary hover:file:border-primary-light hover:file:text-primary-light"
+            />
+            <p className="text-[11px] text-text-muted mt-1.5 leading-relaxed">
+              支持 PNG / JPEG / WebP / GIF / PDF / TXT / CSV。截图比文字更能说明问题，但请只截相关区域。
+            </p>
+
+            {files.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {files.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-[11px] text-text-secondary">
+                    <Paperclip className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{f.name}</span>
+                    <span className="shrink-0 text-text-muted tabular">{Math.round(f.size / 1024)} KB</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      aria-label={`移除 ${f.name}`}
+                      className="ml-auto shrink-0 text-text-muted hover:text-danger transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {fileErr && <p className="text-[11px] text-danger mt-1.5">{fileErr}</p>}
           </div>
 
           {/* 蜜罐：对真人不可见，机器人会填。填了则不计入。 */}

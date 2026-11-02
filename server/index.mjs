@@ -20,8 +20,8 @@
 import { createServer } from 'node:http'
 import { DatabaseSync } from 'node:sqlite'
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { mkdirSync, writeFileSync, readFileSync, unlinkSync, existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 // ── 配置 ────────────────────────────────────────────────────────────
 const PORT = Number(process.env.PORT || 8791)
@@ -49,6 +49,63 @@ const LIMITS = {
   username: 64,
   password: 200,
   passwordMin: 10,
+}
+
+// ── 附件（2026-11-02 新增）──────────────────────────────────────────────────
+/**
+ * 与站群统一服务（entrance/server/feedback-api）同一套规则，但本站是单站版，
+ * 表里不需要 site 列。两套实现并存是历史原因（本站先有留言板，五站后接入
+ * 统一服务），协议与安全模型保持一致，前端代码可以互抄。
+ *
+ * 为什么落盘不进库：SQLite 存 blob 会让单条留言的读写放大到 MB 级，
+ * 而文件只在管理员点开时读一次。
+ * 为什么 base64 而非 multipart：Node 内置模块没有 multipart 解析器，
+ * 手写边界解析是高风险低收益代码。
+ * 为什么禁 SVG：SVG 是 XML，可内联 <script>。
+ */
+const UPLOAD_DIR = process.env.UPLOAD_DIR || '/var/lib/widget-api/uploads'
+const ATTACH = {
+  maxFiles: 3,
+  maxBytes: 2 * 1024 * 1024,
+  maxTotalBytes: 6 * 1024 * 1024,
+  allow: {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+    'application/pdf': 'pdf',
+    'text/plain': 'txt',
+    'text/csv': 'csv',
+  },
+}
+
+/** 魔数校验：mime 由客户端自报，必须用文件头复核，否则改个后缀就能混进来。 */
+function sniffOk(mime, buf) {
+  const b = (i) => buf[i]
+  switch (mime) {
+    case 'image/png':
+      return b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4e && b(3) === 0x47
+    case 'image/jpeg':
+      return b(0) === 0xff && b(1) === 0xd8 && b(2) === 0xff
+    case 'image/gif':
+      return b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46 && b(3) === 0x38
+    case 'image/webp':
+      return buf.slice(0, 4).toString('latin1') === 'RIFF' && buf.slice(8, 12).toString('latin1') === 'WEBP'
+    case 'application/pdf':
+      return buf.slice(0, 4).toString('latin1') === '%PDF'
+    case 'text/plain':
+    case 'text/csv': {
+      if (buf.includes(0)) return false
+      try {
+        new TextDecoder('utf-8', { fatal: true }).decode(buf.subarray(0, 4096))
+        return true
+      } catch {
+        return false
+      }
+    }
+    default:
+      return false
+  }
 }
 
 // ── 通用工具 ────────────────────────────────────────────────────────
@@ -187,6 +244,7 @@ const DUMMY_HASH = hashPassword(randomBytes(24).toString('base64'))
 
 // ── 数据库 ──────────────────────────────────────────────────────────
 mkdirSync(dirname(DB_PATH), { recursive: true })
+mkdirSync(UPLOAD_DIR, { recursive: true })
 const db = new DatabaseSync(DB_PATH)
 
 db.exec(`
@@ -220,12 +278,92 @@ db.exec(`
     ua_hash    TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS attachments (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id  INTEGER NOT NULL,
+    orig_name   TEXT NOT NULL,
+    mime        TEXT NOT NULL,
+    size        INTEGER NOT NULL,
+    stored_name TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_att_msg ON attachments(message_id);
   CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_messages_status  ON messages(status);
   CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 `)
 
 const nowIso = () => new Date().toISOString()
+
+// ── 附件读写 ────────────────────────────────────────────────────────────────
+/** 任一项不合规就整批拒绝，不写部分文件：半个附件比没有附件更让人困惑。 */
+function saveAttachments(messageId, files) {
+  if (!Array.isArray(files) || files.length === 0) return { saved: [] }
+  if (files.length > ATTACH.maxFiles) return { error: `最多 ${ATTACH.maxFiles} 个附件。` }
+
+  const prepared = []
+  let total = 0
+  for (const f of files) {
+    const name = typeof f?.name === 'string' ? f.name.slice(0, 120) : 'file'
+    const mime = typeof f?.mime === 'string' ? f.mime.toLowerCase() : ''
+    const ext = ATTACH.allow[mime]
+    if (!ext) {
+      return { error: `不支持的文件类型：${mime || '未知'}。仅允许 PNG / JPEG / WebP / GIF / PDF / TXT / CSV。` }
+    }
+    const b64 = typeof f?.data === 'string' ? f.data : ''
+    if (b64.length > Math.ceil((ATTACH.maxBytes * 4) / 3) + 16) {
+      return { error: `单个附件不能超过 ${ATTACH.maxBytes / 1024 / 1024} MB。` }
+    }
+    let buf
+    try {
+      buf = Buffer.from(b64, 'base64')
+    } catch {
+      return { error: '附件编码无效。' }
+    }
+    if (buf.length === 0) return { error: '附件内容为空。' }
+    if (buf.length > ATTACH.maxBytes) {
+      return { error: `单个附件不能超过 ${ATTACH.maxBytes / 1024 / 1024} MB。` }
+    }
+    total += buf.length
+    if (total > ATTACH.maxTotalBytes) {
+      return { error: `附件合计不能超过 ${ATTACH.maxTotalBytes / 1024 / 1024} MB。` }
+    }
+    if (!sniffOk(mime, buf)) return { error: `文件内容与类型不符：${name}` }
+    prepared.push({ name, mime, ext, buf })
+  }
+
+  const saved = []
+  for (const p of prepared) {
+    // 存储名完全由服务端生成；原始文件名只进库用于显示，绝不参与拼路径
+    const stored = `${randomBytes(16).toString('hex')}.${p.ext}`
+    writeFileSync(join(UPLOAD_DIR, stored), p.buf)
+    db.prepare(`
+      INSERT INTO attachments (message_id, orig_name, mime, size, stored_name, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(messageId, p.name, p.mime, p.buf.length, stored, nowIso())
+    saved.push({ name: p.name, mime: p.mime, size: p.buf.length })
+  }
+  return { saved }
+}
+
+function listAttachments(messageId) {
+  return db
+    .prepare('SELECT id, orig_name AS name, mime, size FROM attachments WHERE message_id = ?')
+    .all(messageId)
+}
+
+/** 删留言时一并删文件，否则磁盘只增不减（这里没有回收站）。 */
+function deleteAttachmentsOf(messageId) {
+  const rows = db.prepare('SELECT stored_name FROM attachments WHERE message_id = ?').all(messageId)
+  for (const r of rows) {
+    const f = join(UPLOAD_DIR, r.stored_name)
+    try {
+      if (existsSync(f)) unlinkSync(f)
+    } catch {}
+  }
+  db.prepare('DELETE FROM attachments WHERE message_id = ?').run(messageId)
+}
 
 function getAdmin() {
   return db.prepare('SELECT * FROM admin WHERE id = 1').get()
@@ -325,7 +463,8 @@ route('POST', '/api/feedback', async (req, res, ctx) => {
     return
   }
 
-  const body = await readJson(req)
+  // 正文 4000 字 + 附件 6MB，base64 后约 8MB；给到 12MB 免得卡边界
+  const body = await readJson(req, 12 * 1024 * 1024)
   const page = str(body.page, LIMITS.page) || '未指定'
   const content = str(body.content, LIMITS.content)
   const contact = str(body.contact, LIMITS.contact)
@@ -346,8 +485,18 @@ route('POST', '/api/feedback', async (req, res, ctx) => {
     .prepare('INSERT INTO messages (page, content, contact, status, created_at, ip_hash, ua_hash) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(page, content, contact || null, 'new', nowIso(), ipHash(ip), uaHash)
 
-  console.log(`[feedback] 新增 #${r.lastInsertRowid} page=${page} len=${content.length}`)
-  sendJson(res, 201, { ok: true }, corsHeaders(req))
+  const messageId = Number(r.lastInsertRowid)
+
+  // 附件失败就回滚这条留言：宁可让读者重填，也不要留一条"正文到了、图没到"的记录
+  const att = saveAttachments(messageId, body.files)
+  if (att.error) {
+    db.prepare('DELETE FROM messages WHERE id = ?').run(messageId)
+    sendJson(res, 400, { error: att.error }, corsHeaders(req))
+    return
+  }
+
+  console.log(`[feedback] 新增 #${messageId} page=${page} len=${content.length} files=${att.saved.length}`)
+  sendJson(res, 201, { ok: true, attachments: att.saved.length }, corsHeaders(req))
 })
 
 // —— 管理：登录 ——
@@ -408,6 +557,9 @@ route('GET', '/api/admin/messages', async (req, res, ctx) => {
     .prepare(`SELECT id, page, content, contact, status, created_at FROM messages ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
     .all(...args, limit, offset)
 
+  // 附件随列表一起返回：后台要显示"有几张图"，分页拉取会让列表闪烁
+  for (const it of items) it.attachments = listAttachments(it.id)
+
   const total = db.prepare(`SELECT COUNT(*) AS c FROM messages ${where}`).get(...args).c
 
   const counts = { all: 0, new: 0, read: 0, archived: 0 }
@@ -447,7 +599,42 @@ route('DELETE', '/api/admin/messages/:id', async (req, res) => {
 
   const r = db.prepare('DELETE FROM messages WHERE id = ?').run(id)
   if (!r.changes) return sendJson(res, 404, { error: '留言不存在。' })
+  // 先删留言再删文件：即使删文件抛错，库里也不会留指向空文件的孤儿记录
+  deleteAttachmentsOf(id)
   sendJson(res, 200, { ok: true })
+})
+
+// —— 管理：下载附件 ——
+/**
+ * 必须带管理员会话才能下：留言对作者以外所有人不可见，附件里往往是电路照片、
+ * 客户截图，泄露一条等于泄露整条留言。
+ * Content-Type 一律 octet-stream + attachment：就算传的是 png 也不让浏览器内联渲染，
+ * 这是存储型 XSS 的常见入口，直接掐掉。
+ */
+route('GET', '/api/admin/attachments/:id', async (req, res) => {
+  if (!readSession(req)) return sendJson(res, 401, { error: '未登录。' })
+
+  const id = Number(req.url.split('?')[0].split('/').pop())
+  if (!Number.isInteger(id)) return sendJson(res, 400, { error: 'id 无效。' })
+
+  const row = db.prepare('SELECT * FROM attachments WHERE id = ?').get(id)
+  if (!row) return sendJson(res, 404, { error: '附件不存在。' })
+
+  let buf
+  try {
+    buf = readFileSync(join(UPLOAD_DIR, row.stored_name))
+  } catch {
+    return sendJson(res, 404, { error: '附件文件已丢失（可能被手工清理过）。' })
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'application/octet-stream',
+    'Content-Length': buf.length,
+    'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(row.orig_name)}`,
+    'X-Content-Type-Options': 'nosniff',
+    'Cache-Control': 'no-store',
+  })
+  res.end(buf)
 })
 
 // —— 管理：改密码 ——
