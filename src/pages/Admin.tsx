@@ -227,13 +227,24 @@ export default function Admin() {
   useEffect(() => {
     if (!settingsOpen) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSettingsOpen(false)
+      // Esc 也走 closeSettings：有未提交输入时先确认，并顺带清空密码字段
+      // （原先直接 setSettingsOpen(false)：输入不会被清，下次打开还残留上一次的内容）。
+      if (e.key === 'Escape') closeSettings()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [settingsOpen])
+    // 依赖里必须带三个密码值：否则 onKey 会闭包住弹层打开那一刻的 closeSettings，
+    // 永远读到空字符串，确认框就不会出现。
+  }, [settingsOpen, curPass, newPass, confirmPass])
 
+  // 关闭设置弹层。
+  // 2026-11-03 修：用户反馈「在修改密码里一点别处，设置就消失」——填到一半的密码被清空。
+  // 两处配合解决：① 遮罩不再响应点击关闭（见弹层处的注释）；
+  //              ② 主动关闭（X / Esc）时，若表单已有输入，先确认再丢。
   function closeSettings() {
+    if ((curPass || newPass || confirmPass) && !window.confirm('修改密码表单里还有内容没提交，确定关闭？')) {
+      return
+    }
     setSettingsOpen(false)
     setPwMsg(null)
     setCurPass('')
@@ -590,10 +601,12 @@ export default function Admin() {
       )}
 
       {/* 设置弹层：修改密码收纳在这里，不再常驻留言列表下方 */}
+      {/* 2026-11-03：遮罩不再响应点击关闭。
+          用户反馈「修改密码时鼠标点到别处，弹层就消失」，表单填到一半被清空。
+          现在只保留 X 与 Esc 两种主动关闭方式（关闭前若有输入会先确认）。 */}
       {settingsOpen && (
         <div
           className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/70 p-4 sm:p-8"
-          onMouseDown={closeSettings}
           role="presentation"
         >
           <div
