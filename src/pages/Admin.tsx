@@ -628,7 +628,7 @@ export default function Admin() {
                     id="pw-cfm"
                     value={confirmPass}
                     onChange={setConfirmPass}
-                    autoComplete="new-password"
+                    autoComplete="off"
                     minLength={10}
                   />
                 </div>
