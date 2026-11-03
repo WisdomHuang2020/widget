@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useCallback, type FormEvent, useRef, type ClipboardEvent, type DragEvent } from 'react'
 import {
   LogIn,
   LogOut,
@@ -57,6 +57,7 @@ function PasswordField({
   autoComplete,
   minLength,
   autoFocus = false,
+  noPaste = false,
 }: {
   id: string
   value: string
@@ -64,30 +65,62 @@ function PasswordField({
   autoComplete?: string
   minLength?: number
   autoFocus?: boolean
+  /** 确认密码专用：拒绝粘贴与拖入，逼着手动重打一遍。 */
+  noPaste?: boolean
 }) {
   const [show, setShow] = useState(false)
+  const [pasteBlocked, setPasteBlocked] = useState(false)
+  const hintTimer = useRef<number | undefined>(undefined)
+
+  useEffect(() => () => window.clearTimeout(hintTimer.current), [])
+
+  /* 拦下之后必须给一句提示：静默无反应会被当成“输入框坏了”，然后反复重试。 */
+  const rejectPaste = (e: ClipboardEvent<HTMLInputElement> | DragEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    setPasteBlocked(true)
+    window.clearTimeout(hintTimer.current)
+    hintTimer.current = window.setTimeout(() => setPasteBlocked(false), 2600)
+  }
+
   return (
-    <div className="relative">
-      <input
-        id={id}
-        type={show ? 'text' : 'password'}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="input-field pr-10"
-        autoComplete={autoComplete}
-        minLength={minLength}
-        required
-        autoFocus={autoFocus}
-      />
-      <button
-        type="button"
-        onClick={() => setShow((v) => !v)}
-        aria-label={show ? '隐藏密码' : '显示密码'}
-        title={show ? '隐藏密码' : '显示密码'}
-        className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-text-secondary transition-colors hover:text-text-primary"
-      >
-        {show ? <EyeOff className="h-[17px] w-[17px]" /> : <Eye className="h-[17px] w-[17px]" />}
-      </button>
+    <div>
+      <div className="relative">
+        <input
+          id={id}
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          /* pr-10 给右侧按钮让位；input-field 的 padding 在 components 层，
+             Tailwind 的 utility 层优先级更高，能盖住 */
+          className="input-field pr-10"
+          autoComplete={autoComplete}
+          minLength={minLength}
+          required
+          autoFocus={autoFocus}
+          onPaste={noPaste ? rejectPaste : undefined}
+          onDrop={noPaste ? rejectPaste : undefined}
+        />
+        <button
+          type="button"
+          onClick={() => setShow((v) => !v)}
+          aria-label={show ? '隐藏密码' : '显示密码'}
+          title={show ? '隐藏密码' : '显示密码'}
+          className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-text-secondary transition-colors hover:text-text-primary"
+        >
+          {show ? <EyeOff className="h-[17px] w-[17px]" /> : <Eye className="h-[17px] w-[17px]" />}
+        </button>
+      </div>
+      {noPaste && (
+        /* 常驻占位、只切 opacity：提示出现时不会把下面的元素顶下去 */
+        <p
+          aria-live="polite"
+          className={`mt-1.5 text-[11px] text-accent transition-opacity duration-200 ${
+            pasteBlocked ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          确认密码请手动输入，不支持粘贴
+        </p>
+      )}
     </div>
   )
 }
@@ -630,6 +663,7 @@ export default function Admin() {
                     onChange={setConfirmPass}
                     autoComplete="off"
                     minLength={10}
+                  noPaste
                   />
                 </div>
 
