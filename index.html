@@ -9,6 +9,22 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!--
+      首屏防闪：在 body 渲染前把上次选的主题盖到 <html> 上。
+      ⚠️ 校验规则必须与 src/components/ThemeSwitcher.tsx 的 isThemeId 一致：
+        ?theme= 优先 → 其次 localStorage['pk-theme'] → 非法值回落默认（深墨 teal）。
+      放这里而不是 React 组件里，是因为组件挂载晚于首次绘制，放那儿会先闪一下默认配色。
+    -->
+    <script>
+      (function () {
+        var IDS = ['dark-teal', 'blue', 'navy-tech', 'graphite', 'warm-paper', 'forest', 'indigo', 'sea-salt']
+        try {
+          var q = new URLSearchParams(location.search).get('theme')
+          var v = IDS.indexOf(q) >= 0 ? q : localStorage.getItem('pk-theme')
+          if (IDS.indexOf(v) >= 0) document.documentElement.dataset.theme = v
+        } catch (e) {}
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

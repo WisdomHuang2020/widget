@@ -253,3 +253,163 @@ svg text {
     text-decoration: none !important;
   }
 }
+
+
+/* ── 主题切换：8 套配色（2026-11-07 从 psu-model 的主题实现移植）────────────
+   本站原色即「深墨 teal」，不写 data-theme 时就是它（@theme 里的 :root 值）。
+   切换只覆盖颜色变量、不改结构。
+   选择器用 `html[data-theme]`（特异性 0,1,1）而非 `[data-theme]`，
+   确保稳压 @theme 生成的 :root 声明 —— 两者特异性同为 0,1,0 时只能靠顺序，容易翻车。
+   --color-accent-light 母版没有，按各套的 accent 提亮 22% 派生，保证 8 套齐全。 */
+/* 蓝调浅色 */
+html[data-theme="blue"] {
+  --color-bg: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #fcfcfd;
+  --color-border: #d3d9e0;
+  --color-border-light: #e4e7eb;
+  --color-text-primary: #14171c;
+  --color-text-secondary: #4b535e;
+  --color-text-muted: #6b7480;
+  --color-primary: #0070c0;
+  --color-primary-light: #0060b0;
+  --color-primary-dark: #0050a0;
+  --color-accent: #a35c00;
+  --color-success: #1a7f3c;
+  --color-danger: #b42318;
+  --color-accent-light: #b78038;
+}
+
+/* 深墨 teal · 本站原色 */
+html[data-theme="dark-teal"] {
+  --color-bg: #0a0a0a;
+  --color-surface: #171717;
+  --color-surface-elevated: #262626;
+  --color-border: #404040;
+  --color-border-light: #525252;
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #a3a3a3;
+  --color-text-muted: #737373;
+  --color-primary: #0f766e;
+  --color-primary-light: #14b8a6;
+  --color-primary-dark: #134e4a;
+  --color-accent: #f59e0b;
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-accent-light: #f7b341;
+}
+
+/* 深蓝科技 */
+html[data-theme="navy-tech"] {
+  --color-bg: #0b1a2b;
+  --color-surface: #12253c;
+  --color-surface-elevated: #1b3350;
+  --color-border: #2b4a6b;
+  --color-border-light: #3a5c80;
+  --color-text-primary: #eaf4ff;
+  --color-text-secondary: #a8c2dc;
+  --color-text-muted: #7e9bb8;
+  --color-primary: #3aa0e8;
+  --color-primary-light: #6bc4ff;
+  --color-primary-dark: #2277b8;
+  --color-accent: #ffb454;
+  --color-success: #4ade80;
+  --color-danger: #ff7a7a;
+  --color-accent-light: #ffc57a;
+}
+
+/* 石墨灰 */
+html[data-theme="graphite"] {
+  --color-bg: #f2f3f5;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #fafbfc;
+  --color-border: #c9ced5;
+  --color-border-light: #e0e3e8;
+  --color-text-primary: #1b2027;
+  --color-text-secondary: #4d5661;
+  --color-text-muted: #78818c;
+  --color-primary: #3f4855;
+  --color-primary-light: #5b6675;
+  --color-primary-dark: #2c333d;
+  --color-accent: #b45309;
+  --color-success: #15803d;
+  --color-danger: #b91c1c;
+  --color-accent-light: #c5793f;
+}
+
+/* 米白手册 */
+html[data-theme="warm-paper"] {
+  --color-bg: #faf6ed;
+  --color-surface: #fffdf7;
+  --color-surface-elevated: #fbf6e9;
+  --color-border: #dcd0b6;
+  --color-border-light: #eae0c9;
+  --color-text-primary: #2e2519;
+  --color-text-secondary: #5e5140;
+  --color-text-muted: #8a7a63;
+  --color-primary: #9a5b13;
+  --color-primary-light: #b8761f;
+  --color-primary-dark: #7a4710;
+  --color-accent: #2f6b62;
+  --color-success: #3f7a3f;
+  --color-danger: #a8362b;
+  --color-accent-light: #5d8c85;
+}
+
+/* 森林墨绿 */
+html[data-theme="forest"] {
+  --color-bg: #0c1712;
+  --color-surface: #14241b;
+  --color-surface-elevated: #1d3226;
+  --color-border: #2f4a38;
+  --color-border-light: #3d5c47;
+  --color-text-primary: #e8f5ec;
+  --color-text-secondary: #a7c4b1;
+  --color-text-muted: #7d9c88;
+  --color-primary: #3fbf7f;
+  --color-primary-light: #6ed8a2;
+  --color-primary-dark: #2b9461;
+  --color-accent: #e9c46a;
+  --color-success: #6ee7a0;
+  --color-danger: #ff8f80;
+  --color-accent-light: #eed18b;
+}
+
+/* 靛紫柔光 */
+html[data-theme="indigo"] {
+  --color-bg: #f6f5fc;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #fbfaff;
+  --color-border: #d6d1e8;
+  --color-border-light: #e7e3f2;
+  --color-text-primary: #211d33;
+  --color-text-secondary: #524c6b;
+  --color-text-muted: #7e7899;
+  --color-primary: #5b4bd6;
+  --color-primary-light: #7869e8;
+  --color-primary-dark: #4538ad;
+  --color-accent: #b2568a;
+  --color-success: #1a7f5a;
+  --color-danger: #c23b5b;
+  --color-accent-light: #c37ba4;
+}
+
+/* 海盐青 */
+html[data-theme="sea-salt"] {
+  --color-bg: #eef7f7;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #f8fdfd;
+  --color-border: #c4dcda;
+  --color-border-light: #dceae9;
+  --color-text-primary: #123033;
+  --color-text-secondary: #416064;
+  --color-text-muted: #6e8b8d;
+  --color-primary: #0e7490;
+  --color-primary-light: #1294b0;
+  --color-primary-dark: #0a566c;
+  --color-accent: #b2601f;
+  --color-success: #137a52;
+  --color-danger: #b23b3b;
+  --color-accent-light: #c38350;
+}
+
