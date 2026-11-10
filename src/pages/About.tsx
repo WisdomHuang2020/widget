@@ -1,4 +1,4 @@
-import { ExternalLink, AlertTriangle, BookOpen, Wrench } from 'lucide-react'
+import { ExternalLink, AlertTriangle, Wrench } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import SectionCard from '../components/SectionCard'
 import MathBlock from '../components/MathBlock'
@@ -124,19 +124,12 @@ export default function About() {
         </div>
       </SectionCard>
 
-      <SectionCard title="版本与源码">
+      <SectionCard title="版本">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-text-secondary">
           <span className="font-mono">
             当前版本：<span className="app-version text-primary-light">v{__APP_VERSION__}</span>
           </span>
-          <a
-            href="https://github.com/WisdomHuang2020/widget"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 hover:text-primary-light transition-colors"
-          >
-            <BookOpen className="w-3.5 h-3.5" /> 源码仓库（含计算器原始版本存档）
-          </a>
+          {/* 2026-11-10 站群统一口径：「源码仓库」GitHub 外链一并移除，本节只保留版本号。 */}
         </div>
         <p className="text-xs text-text-muted leading-relaxed mt-3">
           仓库内 <code className="font-mono text-text-secondary">reference/</code> 目录保留了本站两个计算器

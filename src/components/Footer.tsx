@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Github, Waves, BatteryCharging, Info, House } from 'lucide-react'
+import { Waves, BatteryCharging, Info, House } from 'lucide-react'
 import BrandMark from './BrandMark'
 
 export default function Footer() {
@@ -90,14 +90,7 @@ export default function Footer() {
               </a>
             </div>
           </div>
-          <a
-            href="https://github.com/WisdomHuang2020/widget"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 text-text-muted hover:text-text-secondary text-sm transition-colors"
-          >
-            <Github className="w-4 h-4" /> GitHub
-          </a>
+          {/* 2026-11-10 站群统一口径：页面上的 GitHub 源码仓库链接与图标全部移除。 */}
         </div>
         {/* 免责声明：分「工程决策」与「知识产权」两段，与站群其余站点保持同一文本。 */}
         <div className="mt-8 border-t border-border pt-6">
