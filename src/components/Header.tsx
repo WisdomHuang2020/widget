@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import ThemeSwitcher from './ThemeSwitcher'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, LayoutGrid, Waves, BatteryCharging, Info, MessageSquare } from 'lucide-react'
+import { Menu, X, LayoutGrid, Waves, BatteryCharging, Info, MessageSquare, House } from 'lucide-react'
 import BrandMark from './BrandMark'
 
 const navLinks = [
@@ -52,6 +52,17 @@ export default function Header() {
               </Link>
             )
           })}
+          {/* 站群入口（2026-11-10）：参照 control-mode / motor-lighting / english 三站，
+              房子图标 + 「站群入口」，放在页眉右侧主题切换器之前，链接总入口且不开新标签页。
+              2026-11-02 加的「返回站群入口」只在页脚，页眉此前没有入口。 */}
+          <a
+            href="https://power-knowledge.tech/"
+            className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-elevated hover:text-primary-light"
+            title="返回 power-knowledge.tech 站群入口"
+          >
+            <House className="h-4 w-4" />
+            <span className="hidden lg:inline">站群入口</span>
+          </a>
           <ThemeSwitcher />
         </nav>
 
